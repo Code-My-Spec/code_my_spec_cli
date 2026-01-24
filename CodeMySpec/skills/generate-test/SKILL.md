@@ -2,8 +2,8 @@
 name: generate-test
 description: Generate component tests from spec using agent task session
 user-invocable: true
-allowed-tools: Bash(mix cli *), Read
+allowed-tools: Bash(${CLAUDE_PLUGIN_ROOT}/bin/cms *), Read
 argument-hint: [ModuleName]
 ---
 
-!`MIX_ENV=cli mix cli start-agent-task -e ${CLAUDE_SESSION_ID} -t component_test -m $ARGUMENTS`
+!`${CLAUDE_PLUGIN_ROOT}/bin/cms start-agent-task -e ${CLAUDE_SESSION_ID} -t component_test -m $ARGUMENTS`
