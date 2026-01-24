@@ -28,7 +28,7 @@ defmodule CodeMySpecCli.Application do
   end
 
   defp get_cli_args do
-    Application.get_env(:code_my_spec, :cli_args) || burrito_args()
+    Application.get_env(:code_my_spec_cli, :cli_args) || burrito_args()
   end
 
   defp burrito_args do
