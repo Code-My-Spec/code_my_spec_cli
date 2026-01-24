@@ -4,9 +4,8 @@ defmodule CodeMySpecCli.Release.PackageExtension do
 
   This step:
   1. Creates a release directory with extension files
-  2. Updates command references from dev mode to production binary
-  3. Copies the binary for GitHub Release upload
-  4. Creates an install script that downloads the binary
+  2. Copies the binary for GitHub Release upload
+  3. Creates an install script that downloads the binary
   """
 
   @behaviour Burrito.Builder.Step
@@ -41,10 +40,6 @@ defmodule CodeMySpecCli.Release.PackageExtension do
     # Copy extension directories
     copy_extension_files(source_extension, extension_dir)
     log("Copied extension files")
-
-    # Update command references
-    update_command_references(extension_dir)
-    log("Updated command references")
 
     # Copy binary for GitHub Release
     binary_name = binary_name_for_target(context.target)
@@ -177,47 +172,6 @@ defmodule CodeMySpecCli.Release.PackageExtension do
         File.cp_r!(source_dir, dest_dir)
       end
     end
-  end
-
-  defp update_command_references(release_dir) do
-    # Update hooks.json (needs different escaping for JSON)
-    hooks_path = Path.join([release_dir, "hooks", "hooks.json"])
-
-    if File.exists?(hooks_path) do
-      update_hooks_json(hooks_path)
-    end
-
-    # Update all SKILL.md files
-    skills_dir = Path.join(release_dir, "skills")
-
-    if File.exists?(skills_dir) do
-      Path.wildcard(Path.join([skills_dir, "**", "SKILL.md"]))
-      |> Enum.each(&update_skill_file/1)
-    end
-  end
-
-  defp update_hooks_json(path) do
-    content = File.read!(path)
-
-    # Use ${CLAUDE_PLUGIN_ROOT} for plugin-relative paths
-    updated =
-      content
-      |> String.replace("MIX_ENV=cli mix cli", "${CLAUDE_PLUGIN_ROOT}/bin/#{@binary_name}")
-
-    File.write!(path, updated)
-  end
-
-  defp update_skill_file(path) do
-    content = File.read!(path)
-
-    updated =
-      content
-      # Replace the CLI invocation command with plugin-relative path
-      |> String.replace("MIX_ENV=cli mix cli", "${CLAUDE_PLUGIN_ROOT}/bin/#{@binary_name}")
-      # Replace allowed-tools pattern to allow the plugin-relative binary
-      |> String.replace("Bash(mix cli *)", "Bash(${CLAUDE_PLUGIN_ROOT}/bin/#{@binary_name} *)")
-
-    File.write!(path, updated)
   end
 
   defp binary_name_for_target(target) do
