@@ -2,13 +2,14 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "Building CLI..."
-cd "$SCRIPT_DIR"
+cd "$PROJECT_DIR"
 yes | MIX_ENV=prod mix release
 
 echo "Copying binary..."
-mkdir -p "$SCRIPT_DIR/CodeMySpec/bin"
-cp "$SCRIPT_DIR/burrito_out/code_my_spec_cli_macos_m1" "$SCRIPT_DIR/CodeMySpec/bin/cms"
+mkdir -p "$PROJECT_DIR/CodeMySpec/bin"
+cp "$PROJECT_DIR/burrito_out/code_my_spec_cli_macos_m1" "$PROJECT_DIR/CodeMySpec/bin/cms"
 
-echo "Done! Binary at: $SCRIPT_DIR/CodeMySpec/bin/cms"
+echo "Done! Binary at: $PROJECT_DIR/CodeMySpec/bin/cms"

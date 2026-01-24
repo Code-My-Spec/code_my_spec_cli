@@ -13,7 +13,7 @@ defmodule CodeMySpecCli.Hooks do
 
   ## Usage
 
-      MIX_ENV=cli mix cli hook
+      cms hook
   """
 
   require Logger

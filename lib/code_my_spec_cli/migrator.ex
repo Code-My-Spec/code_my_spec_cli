@@ -1,16 +1,22 @@
 defmodule CodeMySpecCli.Migrator do
   @moduledoc """
-  Simple Task that runs migrations on startup and then exits.
+  GenServer that runs migrations synchronously during init.
+  Blocks supervision tree startup until migrations complete.
   """
 
-  use Task
+  use GenServer
 
-  def start_link(_arg) do
-    Task.start_link(__MODULE__, :run, [])
+  def start_link(_opts) do
+    GenServer.start_link(__MODULE__, [], name: __MODULE__)
   end
 
-  def run do
-    # Run migrations automatically on startup
+  @impl true
+  def init(_) do
+    run_migrations()
+    {:ok, %{}}
+  end
+
+  defp run_migrations do
     migrations_path = Application.app_dir(:code_my_spec_cli, "priv/repo/migrations")
     Ecto.Migrator.run(CodeMySpec.Repo, migrations_path, :up, all: true)
   end

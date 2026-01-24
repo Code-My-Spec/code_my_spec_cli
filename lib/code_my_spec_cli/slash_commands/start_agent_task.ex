@@ -8,8 +8,8 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
 
   ## Usage
 
-  From CLI (typically via cms-start script):
-      MIX_ENV=cli mix cli start-agent-task -e <claude_session_id> -t spec -m MyApp.Accounts
+  From CLI:
+      cms start-agent-task -e <claude_session_id> -t spec -m MyApp.Accounts
 
   ## Output
 

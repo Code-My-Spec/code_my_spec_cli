@@ -17,8 +17,8 @@ defmodule CodeMySpecCli.Application do
     children = [
       CodeMySpecCli.WebServer.Telemetry,
       CodeMySpec.Repo,
-      CodeMySpec.Vault,
       CodeMySpecCli.Migrator,
+      CodeMySpec.Vault,
       {Registry, keys: :unique, name: CodeMySpecCli.Registry},
       CodeMySpec.Sessions.InteractionRegistry,
       {CodeMySpecCli.CliRunner, args}
@@ -38,6 +38,5 @@ defmodule CodeMySpecCli.Application do
   defp ensure_db_directory do
     db_path = Path.expand("~/.codemyspec/cli.db")
     db_path |> Path.dirname() |> File.mkdir_p!()
-    unless File.exists?(db_path), do: File.write!(db_path, "")
   end
 end
