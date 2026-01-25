@@ -47,6 +47,7 @@ defmodule CodeMySpecCli.MixProject do
   defp releases do
     [
       code_my_spec_cli: [
+        applications: [code_my_spec: :load],
         steps: [:assemble, &Burrito.wrap/1],
         burrito: [
           targets: [

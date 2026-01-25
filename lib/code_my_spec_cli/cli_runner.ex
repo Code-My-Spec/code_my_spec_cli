@@ -12,12 +12,21 @@ defmodule CodeMySpecCli.CliRunner do
 
   def run(args) do
     try do
+      run_migrations()
       CodeMySpecCli.Cli.run(args)
       System.halt(0)
     rescue
       e ->
         IO.puts(:stderr, "Error: #{Exception.message(e)}")
         System.halt(1)
+    end
+  end
+
+  defp run_migrations do
+    migrations_path = Application.app_dir(:code_my_spec_cli, "priv/repo/migrations")
+
+    if File.exists?(migrations_path) do
+      Ecto.Migrator.run(CodeMySpec.Repo, migrations_path, :up, all: true)
     end
   end
 end

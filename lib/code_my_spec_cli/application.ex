@@ -17,7 +17,6 @@ defmodule CodeMySpecCli.Application do
     children = [
       CodeMySpecCli.WebServer.Telemetry,
       CodeMySpec.Repo,
-      CodeMySpecCli.Migrator,
       CodeMySpec.Vault,
       {Registry, keys: :unique, name: CodeMySpecCli.Registry},
       CodeMySpec.Sessions.InteractionRegistry,
