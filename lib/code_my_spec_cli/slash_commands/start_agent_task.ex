@@ -49,10 +49,13 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
     module_name = Map.get(args, :module_name)
     working_dir = Map.get(args, :working_dir)
 
+    # Resolve working_dir - use explicit arg or find project root
+    resolved_working_dir = working_dir || CodeMySpecCli.Config.get_working_dir()
+
     if session_type in @componentless_tasks do
-      execute_componentless_task(scope, external_id, session_type, working_dir)
+      execute_componentless_task(scope, external_id, session_type, resolved_working_dir)
     else
-      execute_component_task(scope, external_id, session_type, module_name)
+      execute_component_task(scope, external_id, session_type, module_name, resolved_working_dir)
     end
   rescue
     error ->
@@ -74,15 +77,15 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
     end
   end
 
-  defp execute_component_task(scope, external_id, session_type, module_name) do
+  defp execute_component_task(scope, external_id, session_type, module_name, working_dir) do
     # Fetch component before resolving session type so "spec" can auto-detect
     with {:ok, _} <- validate_external_id(external_id),
          {:ok, project} <- get_project(scope),
-         {:ok, sync_result} <- sync_project(scope),
+         {:ok, sync_result} <- sync_project(scope, base_dir: working_dir),
          {:ok, component} <- get_component(scope, module_name),
          {:ok, agent_task_module} <- resolve_session_type(session_type, component),
          {:ok, _db_session} <- create_session(scope, external_id, agent_task_module, component),
-         {:ok, task_session} <- build_task_session(external_id, component, project),
+         {:ok, task_session} <- build_task_session(external_id, component, project, working_dir),
          {:ok, prompt} <- agent_task_module.command(scope, task_session) do
       output_sync_metrics(sync_result)
       # Output just the prompt for Claude to consume
@@ -163,13 +166,14 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
     })
   end
 
-  defp build_task_session(external_id, component, project) do
+  defp build_task_session(external_id, component, project, working_dir) do
     {:ok,
      %{
        external_id: external_id,
        component: component,
        project: project,
-       environment_type: :cli
+       environment_type: :cli,
+       working_dir: working_dir
      }}
   end
 
@@ -188,16 +192,16 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
     %Environment{type: :local, cwd: working_dir, ref: %{working_dir: working_dir}}
   end
 
-  defp sync_project(nil) do
+  defp sync_project(nil, _opts) do
     {:error,
      "No project configured. Run the CLI in a directory with .code_my_spec/config.yml or run /init first."}
   end
 
-  defp sync_project(scope) do
+  defp sync_project(scope, opts) do
     # Clear all requirements before resyncing
     Requirements.clear_all_project_requirements(scope)
 
-    case Sync.sync_all(scope) do
+    case Sync.sync_all(scope, opts) do
       {:ok, result} ->
         {:ok, result}
 

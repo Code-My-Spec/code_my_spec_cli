@@ -27,6 +27,7 @@ defmodule CodeMySpecCli.MixProject do
     [
       # Core dependency (runtime: false so CLI manages its own supervision tree)
       {:code_my_spec, path: "../code_my_spec", runtime: false},
+      {:phoenix_pubsub, "~> 2.2"},
 
       # CLI deps
       {:burrito, "~> 1.5"},

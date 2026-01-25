@@ -18,7 +18,7 @@ defmodule CodeMySpecCli.Hooks do
 
   require Logger
 
-  alias CodeMySpec.Hooks.{TrackEdits, ValidateEdits}
+  alias CodeMySpec.Sessions.AgentTasks.{TrackEdits, ValidateEdits}
   alias CodeMySpec.Sessions
   alias CodeMySpecCli.SlashCommands.EvaluateAgentTask
 
@@ -30,13 +30,16 @@ defmodule CodeMySpecCli.Hooks do
     Logger.info("[Hooks] Hook invoked")
 
     raw_input = IO.read(:stdio, :eof)
-    Logger.info("[Hooks] Raw stdin: #{inspect(raw_input)}")
+    Logger.debug("[Hooks] Raw stdin: #{inspect(raw_input)}")
 
     result =
       case parse_hook_input(raw_input) do
         {:ok, hook_input} ->
-          Logger.info("[Hooks] Parsed input: #{inspect(hook_input)}")
           event_name = Map.get(hook_input, "hook_event_name", "unknown")
+          session_id = Map.get(hook_input, "session_id", "none")
+          cwd = Map.get(hook_input, "cwd", "unknown")
+
+          Logger.info("[Hooks] Event: #{event_name}, session: #{session_id}, cwd: #{cwd}")
           {event_name, dispatch(hook_input)}
 
         {:error, reason} ->

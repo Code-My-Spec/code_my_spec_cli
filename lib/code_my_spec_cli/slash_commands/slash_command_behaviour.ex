@@ -51,8 +51,10 @@ defmodule CodeMySpecCli.SlashCommands.SlashCommandBehaviour do
       Override this if your command needs custom scope resolution
       or doesn't require a scope at all.
       """
-      def resolve_scope(_args) do
-        case CodeMySpecCli.Scope.get() do
+      def resolve_scope(args) do
+        working_dir = Map.get(args, :working_dir)
+
+        case CodeMySpecCli.Scope.get(working_dir) do
           # Some commands might not need scope
           nil -> {:ok, nil}
           scope -> {:ok, scope}

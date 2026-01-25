@@ -72,7 +72,7 @@ defmodule CodeMySpecCli.Cli do
                   value_name: "WORKING_DIR",
                   short: "-w",
                   long: "--working-dir",
-                  help: "Working directory for the task (defaults to current directory)",
+                  help: "Project working directory (defaults to current directory)",
                   required: false,
                   parser: :string
                 ]

@@ -18,9 +18,9 @@ defmodule CodeMySpecCli.Config do
   Gets the project ID from the local config file.
   Returns {:ok, project_id} or {:error, reason}
   """
-  @spec get_project_id() :: {:ok, String.t()} | {:error, atom()}
-  def get_project_id do
-    case read_config() do
+  @spec get_project_id(String.t() | nil) :: {:ok, String.t()} | {:error, atom()}
+  def get_project_id(working_dir \\ nil) do
+    case read_config(working_dir) do
       {:ok, config} ->
         case config["project_id"] do
           nil -> {:error, :project_id_not_set}
@@ -52,9 +52,9 @@ defmodule CodeMySpecCli.Config do
   Gets the module name from the local config file.
   Returns {:ok, module_name} or {:error, reason}
   """
-  @spec get_module_name() :: {:ok, String.t()} | {:error, atom()}
-  def get_module_name do
-    case read_config() do
+  @spec get_module_name(String.t() | nil) :: {:ok, String.t()} | {:error, atom()}
+  def get_module_name(working_dir \\ nil) do
+    case read_config(working_dir) do
       {:ok, config} ->
         case config["module_name"] do
           nil -> {:error, :module_name_not_set}
@@ -85,9 +85,9 @@ defmodule CodeMySpecCli.Config do
   Gets the current user email from the local config file.
   Returns {:ok, email} or {:error, :not_set} if no user is logged in.
   """
-  @spec get_current_user_email() :: {:ok, String.t()} | {:error, :not_set}
-  def get_current_user_email do
-    case read_config() do
+  @spec get_current_user_email(String.t() | nil) :: {:ok, String.t()} | {:error, :not_set}
+  def get_current_user_email(working_dir \\ nil) do
+    case read_config(working_dir) do
       {:ok, config} ->
         case config["current_user_email"] do
           nil -> {:error, :not_set}
@@ -146,9 +146,9 @@ defmodule CodeMySpecCli.Config do
   @doc """
   Reads the entire config file.
   """
-  @spec read_config() :: {:ok, map()} | {:error, atom()}
-  def read_config do
-    config_path = get_config_path()
+  @spec read_config(String.t() | nil) :: {:ok, map()} | {:error, atom()}
+  def read_config(working_dir \\ nil) do
+    config_path = get_config_path(working_dir)
 
     if File.exists?(config_path) do
       case YamlElixir.read_from_file(config_path) do
@@ -194,16 +194,60 @@ defmodule CodeMySpecCli.Config do
   @doc """
   Gets the path to the config directory (project_root/.code_my_spec)
   """
-  @spec get_config_dir() :: String.t()
-  def get_config_dir do
-    Path.join(File.cwd!(), @config_dir)
+  @spec get_config_dir(String.t() | nil) :: String.t()
+  def get_config_dir(working_dir \\ nil) do
+    base_dir = working_dir || get_working_dir()
+    Path.join(base_dir, @config_dir)
+  end
+
+  @doc """
+  Gets the working directory from env var, or finds project root by walking up.
+  """
+  @spec get_working_dir() :: String.t()
+  def get_working_dir do
+    case System.get_env("CODE_MY_SPEC_WORKING_DIR") do
+      nil ->
+        case find_project_root() do
+          {:ok, root} -> root
+          {:error, _} -> File.cwd!()
+        end
+
+      dir ->
+        dir
+    end
+  end
+
+  @doc """
+  Finds the project root by walking up the directory tree looking for mix.exs.
+
+  Returns {:ok, path} if found, {:error, :project_root_not_found} if not.
+  """
+  @spec find_project_root(String.t() | nil) :: {:ok, String.t()} | {:error, :project_root_not_found}
+  def find_project_root(starting_dir \\ nil) do
+    dir = starting_dir || File.cwd!()
+    do_find_project_root(dir)
+  end
+
+  defp do_find_project_root(dir) do
+    cond do
+      File.exists?(Path.join(dir, "mix.exs")) ->
+        {:ok, dir}
+
+      # Reached filesystem root
+      dir == "/" or dir == Path.dirname(dir) ->
+        {:error, :project_root_not_found}
+
+      # Walk up
+      true ->
+        do_find_project_root(Path.dirname(dir))
+    end
   end
 
   @doc """
   Gets the path to the config file (project_root/.code_my_spec/config.yml)
   """
-  @spec get_config_path() :: String.t()
-  def get_config_path do
-    Path.join(get_config_dir(), @config_file)
+  @spec get_config_path(String.t() | nil) :: String.t()
+  def get_config_path(working_dir \\ nil) do
+    Path.join(get_config_dir(working_dir), @config_file)
   end
 end

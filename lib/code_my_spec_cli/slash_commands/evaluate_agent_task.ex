@@ -31,12 +31,13 @@ defmodule CodeMySpecCli.SlashCommands.EvaluateAgentTask do
   """
   def run(scope, args) do
     session_id_arg = Map.get(args, :session_id)
+    working_dir = Map.get(args, :working_dir) || CodeMySpecCli.Config.get_working_dir()
 
     with {:ok, session_id} when not is_nil(session_id) <- resolve_session_id(session_id_arg),
          {:ok, session} <- get_session(scope, session_id),
          :ok <- check_session_active(session),
-         {:ok, task_session} <- build_task_session(session),
-         {:ok, sync_result} <- sync_project(scope),
+         {:ok, task_session} <- build_task_session(session, working_dir),
+         {:ok, sync_result} <- sync_project(scope, base_dir: working_dir),
          result <- session.type.evaluate(scope, task_session) do
       output_sync_metrics(sync_result)
       maybe_complete_session(scope, session, result)
@@ -86,14 +87,15 @@ defmodule CodeMySpecCli.SlashCommands.EvaluateAgentTask do
 
   defp maybe_complete_session(_scope, _session, _result), do: :ok
 
-  defp build_task_session(session) do
+  defp build_task_session(session, working_dir) do
     # Session should have component and project preloaded
     {:ok,
      %{
        external_id: session.external_conversation_id,
        component: session.component,
        project: session.project,
-       environment_type: session.environment_type
+       environment_type: session.environment_type,
+       working_dir: working_dir
      }}
   end
 
@@ -118,11 +120,11 @@ defmodule CodeMySpecCli.SlashCommands.EvaluateAgentTask do
     %{"decision" => "block", "reason" => format_error(reason)}
   end
 
-  defp sync_project(scope) do
+  defp sync_project(scope, opts) do
     # Clear all requirements before resyncing
     Requirements.clear_all_project_requirements(scope)
 
-    case Sync.sync_all(scope) do
+    case Sync.sync_all(scope, opts) do
       {:ok, result} ->
         {:ok, result}
 
