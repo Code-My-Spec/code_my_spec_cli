@@ -37,9 +37,15 @@ defmodule CodeMySpecCli.Hooks do
         {:ok, hook_input} ->
           event_name = Map.get(hook_input, "hook_event_name", "unknown")
           session_id = Map.get(hook_input, "session_id", "none")
-          cwd = Map.get(hook_input, "cwd", "unknown")
+          cwd = Map.get(hook_input, "cwd")
 
           Logger.info("[Hooks] Event: #{event_name}, session: #{session_id}, cwd: #{cwd}")
+
+          # Set working directory environment variable for downstream code
+          if cwd do
+            System.put_env("CODE_MY_SPEC_WORKING_DIR", cwd)
+          end
+
           {event_name, dispatch(hook_input)}
 
         {:error, reason} ->
@@ -58,6 +64,8 @@ defmodule CodeMySpecCli.Hooks do
   end
 
   defp dispatch(%{"hook_event_name" => "Stop", "session_id" => claude_session_id} = hook_input) do
+    cwd = Map.get(hook_input, "cwd")
+
     # Always run ValidateEdits
     validate_result = dispatch_validate_edits(hook_input)
 
@@ -70,7 +78,10 @@ defmodule CodeMySpecCli.Hooks do
           "[Hooks] Found active session #{session_id} for Claude session #{claude_session_id}"
         )
 
-        eval_result = EvaluateAgentTask.run(scope, %{session_id: session.id})
+        args = %{session_id: session.id}
+        args = if cwd, do: Map.put(args, :working_dir, cwd), else: args
+
+        eval_result = EvaluateAgentTask.run(scope, args)
         # Merge results, prioritizing any blocking decision from validation
         merge_hook_results(validate_result, eval_result)
 
@@ -109,8 +120,11 @@ defmodule CodeMySpecCli.Hooks do
   defp dispatch_validate_edits(hook_input) do
     case Map.fetch(hook_input, "session_id") do
       {:ok, session_id} ->
+        cwd = Map.get(hook_input, "cwd")
+        opts = if cwd, do: [working_dir: cwd], else: []
+
         session_id
-        |> ValidateEdits.run()
+        |> ValidateEdits.run(opts)
         |> ValidateEdits.format_output()
 
       :error ->

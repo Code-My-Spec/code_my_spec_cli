@@ -1,1 +1,8 @@
-
+client_api_url: "https://www.codemyspec.com/api"
+code_repo: "https://github.com/johns10/code_my_spec"
+current_user_email: "johns10@gmail.com"
+description: 
+docs_repo: "https://github.com/johns10/code_my_spec_docs"
+module_name: CodeMySpec
+name: Code My Spec
+project_id: e64f0b32-6be2-4f0f-b70a-0f60983c916a

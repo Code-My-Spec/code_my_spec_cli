@@ -17,6 +17,8 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
   On error: Outputs error message to stderr.
   """
 
+  require Logger
+
   use CodeMySpecCli.SlashCommands.SlashCommandBehaviour
 
   alias CodeMySpec.Components
@@ -35,11 +37,13 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
     "implement_context" => AgentTasks.ContextImplementation,
     "component_code" => AgentTasks.ComponentCode,
     "component_test" => AgentTasks.ComponentTest,
-    "project_setup" => AgentTasks.ProjectSetup
+    "project_setup" => AgentTasks.ProjectSetup,
+    "architecture_design" => AgentTasks.ArchitectureDesign,
+    "architecture_review" => AgentTasks.ArchitectureReview
   }
 
   # Tasks that don't require a component/module_name
-  @componentless_tasks ["project_setup"]
+  @componentless_tasks ["project_setup", "architecture_design", "architecture_review"]
 
   @valid_types ["spec" | Map.keys(@session_type_map)]
 
@@ -65,9 +69,12 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
 
   defp execute_componentless_task(scope, external_id, session_type, working_dir) do
     with {:ok, _} <- validate_external_id(external_id),
+         {:ok, project} <- get_project(scope),
+         {:ok, sync_result} <- sync_project(scope, base_dir: working_dir),
          {:ok, agent_task_module} <- resolve_session_type(session_type, nil),
-         {:ok, task_session} <- build_componentless_task_session(external_id, working_dir),
+         {:ok, task_session} <- build_componentless_task_session(external_id, project, working_dir),
          {:ok, prompt} <- agent_task_module.command(scope, task_session) do
+      output_sync_metrics(sync_result)
       IO.puts(prompt)
       :ok
     else
@@ -137,9 +144,14 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
   end
 
   defp get_component(scope, module_name) do
+    Logger.debug("get_component: scope.active_project_id=#{inspect(scope.active_project_id)}, module_name=#{inspect(module_name)}")
     case Components.get_component_by_module_name(scope, module_name) do
-      nil -> {:error, "Component not found with module name: #{module_name}"}
-      component -> {:ok, component}
+      nil ->
+        Logger.debug("get_component: NOT FOUND")
+        {:error, "Component not found with module name: #{module_name}"}
+      component ->
+        Logger.debug("get_component: FOUND component.id=#{component.id}")
+        {:ok, component}
     end
   end
 
@@ -177,10 +189,13 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
      }}
   end
 
-  defp build_componentless_task_session(external_id, working_dir) do
+  defp build_componentless_task_session(external_id, project, working_dir) do
     {:ok,
      %{
        external_id: external_id,
+       project: project,
+       environment_type: :cli,
+       working_dir: working_dir,
        environment: build_environment(working_dir)
      }}
   end

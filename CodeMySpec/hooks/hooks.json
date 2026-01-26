@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "mix cli hook"
+            "command": "cd ${CLAUDE_PLUGIN_ROOT}/.. && mix cli hook"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "mix cli hook"
+            "command": "cd ${CLAUDE_PLUGIN_ROOT}/.. && mix cli hook"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "mix cli hook"
+            "command": "cd ${CLAUDE_PLUGIN_ROOT}/.. && mix cli hook"
           }
         ]
       }

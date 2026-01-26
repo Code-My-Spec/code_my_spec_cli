@@ -49,6 +49,17 @@ defmodule CodeMySpecCli.Application do
   end
 
   defp setup_file_logger do
-    LoggerBackends.add({LoggerFileBackend, :file_log})
+    # Add the file backend handler dynamically
+    {:ok, _} = LoggerBackends.add({LoggerFileBackend, :file_log})
+
+    # Configure the backend with settings from config
+    config = Application.get_env(:logger, :file_log, [])
+
+    Logger.configure_backend({LoggerFileBackend, :file_log},
+      path: Keyword.get(config, :path, Path.expand("~/.codemyspec/cli.log")),
+      level: Keyword.get(config, :level, :debug),
+      format: Keyword.get(config, :format, "$time $metadata[$level] $message\n"),
+      metadata: Keyword.get(config, :metadata, [:request_id, :mfa])
+    )
   end
 end

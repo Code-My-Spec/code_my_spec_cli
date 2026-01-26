@@ -1,8 +1,14 @@
 {
   "name": "codemyspec",
   "description": "Generate context specifications for your codebase",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "author": {
     "name": "CodeMySpec"
+  },
+  "mcpServers": {
+    "architecture-server": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/mcp",
+      "args": []
+    }
   }
 }

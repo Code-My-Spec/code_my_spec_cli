@@ -114,6 +114,24 @@ defmodule CodeMySpecCli.Cli do
                   parser: :string
                 ]
               ]
+            ],
+            mcp: [
+              name: "mcp",
+              about: "Start MCP server with stdio transport (for Claude Code plugin integration)"
+            ],
+            sync: [
+              name: "sync",
+              about: "Sync project components and regenerate architecture views",
+              options: [
+                working_dir: [
+                  value_name: "WORKING_DIR",
+                  short: "-w",
+                  long: "--working-dir",
+                  help: "Project working directory (defaults to current directory)",
+                  required: false,
+                  parser: :string
+                ]
+              ]
             ]
           ]
         )
@@ -190,6 +208,58 @@ defmodule CodeMySpecCli.Cli do
     end
   end
 
+  defp run_mcp_server do
+    require Logger
+
+    Logger.info("[MCP] Starting MCP server...")
+
+    # Set up scope resolver for STDIO transport (no plug to provide scope)
+    Application.put_env(:code_my_spec, :scope_resolver, &CodeMySpecCli.Scope.get/0)
+
+    try do
+      Logger.debug("[MCP] Checking Hermes.Server.Registry...")
+      registry_running = Process.whereis(Hermes.Server.Registry)
+      Logger.debug("[MCP] Registry: #{inspect(registry_running)}")
+
+      # CLI application already started Vault, Repo, PubSub via application.ex
+      # Just need to start Hermes registry and the MCP server
+      children =
+        if registry_running do
+          Logger.debug("[MCP] Registry already running, skipping...")
+          [{CodeMySpec.McpServers.ArchitectureServer, transport: :stdio}]
+        else
+          Logger.debug("[MCP] Starting Hermes.Server.Registry...")
+          [
+            Hermes.Server.Registry,
+            {CodeMySpec.McpServers.ArchitectureServer, transport: :stdio}
+          ]
+        end
+
+      opts = [strategy: :one_for_one, name: CodeMySpec.MCP.Supervisor]
+      Logger.debug("[MCP] Starting supervisor...")
+
+      case Supervisor.start_link(children, opts) do
+        {:ok, pid} ->
+          Logger.info("[MCP] Supervisor started: #{inspect(pid)}")
+          Logger.info("[MCP] MCP server ready, waiting for requests...")
+          # Keep the process running indefinitely to handle MCP requests
+          Process.sleep(:infinity)
+
+        {:error, reason} ->
+          Logger.error("[MCP] FAILED to start supervisor: #{inspect(reason)}")
+          System.halt(1)
+      end
+    rescue
+      e ->
+        Logger.error("[MCP] EXCEPTION: #{Exception.message(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}")
+        reraise e, __STACKTRACE__
+    catch
+      kind, reason ->
+        Logger.error("[MCP] CAUGHT #{kind}: #{inspect(reason)}")
+        :erlang.raise(kind, reason, __STACKTRACE__)
+    end
+  end
+
   defp execute(parsed) do
     case parsed do
       {[:login], _} ->
@@ -212,6 +282,12 @@ defmodule CodeMySpecCli.Cli do
 
       {[:init], %{options: opts}} ->
         CodeMySpecCli.Commands.Init.run(opts)
+
+      {[:mcp], _} ->
+        run_mcp_server()
+
+      {[:sync], %{options: opts}} ->
+        CodeMySpecCli.SlashCommands.Sync.run(opts)
 
       _ ->
         # No subcommand - show help
