@@ -20,15 +20,29 @@ defmodule CodeMySpecCli.Scope do
   def get(working_dir \\ nil) do
     with {:ok, project_id} <- CodeMySpecCli.Config.get_project_id(working_dir),
          {:ok, project} <- get_or_create_project(project_id, working_dir) do
+      {account, account_id} = get_account(working_dir)
+
       %Scope{
         user: get_user(working_dir),
-        active_account: nil,
-        active_account_id: nil,
+        active_account: account,
+        active_account_id: account_id,
         active_project: project,
         active_project_id: project.id
       }
     else
       _ -> nil
+    end
+  end
+
+  defp get_account(working_dir) do
+    case CodeMySpecCli.Config.get_account_id(working_dir) do
+      {:ok, account_id} ->
+        # CLI doesn't have accounts table - just store the ID from config
+        # The account struct will be nil, but account_id is set for scoping
+        {nil, account_id}
+
+      {:error, _} ->
+        {nil, nil}
     end
   end
 
@@ -52,7 +66,7 @@ defmodule CodeMySpecCli.Scope do
           name: config["name"] || "Unnamed Project",
           module_name: config["module_name"] || "App",
           description: config["description"],
-          account_id: 0
+          account_id: config["account_id"]
         }
 
         CodeMySpec.Repo.insert(%Project{} |> struct(attrs))

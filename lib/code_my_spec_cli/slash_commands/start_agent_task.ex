@@ -23,7 +23,6 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
 
   alias CodeMySpec.Components
   alias CodeMySpec.ProjectSync.Sync
-  alias CodeMySpec.Requirements
   alias CodeMySpec.Sessions
   alias CodeMySpec.Sessions.AgentTasks
 
@@ -213,9 +212,6 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
   end
 
   defp sync_project(scope, opts) do
-    # Clear all requirements before resyncing
-    Requirements.clear_all_project_requirements(scope)
-
     case Sync.sync_all(scope, opts) do
       {:ok, result} ->
         {:ok, result}

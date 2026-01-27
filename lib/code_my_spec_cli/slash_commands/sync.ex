@@ -20,7 +20,6 @@ defmodule CodeMySpecCli.SlashCommands.Sync do
   use CodeMySpecCli.SlashCommands.SlashCommandBehaviour
 
   alias CodeMySpec.ProjectSync.Sync
-  alias CodeMySpec.Requirements
 
   def execute(scope, args) do
     working_dir = Map.get(args, :working_dir)
@@ -48,9 +47,6 @@ defmodule CodeMySpecCli.SlashCommands.Sync do
   defp validate_scope(scope), do: {:ok, scope}
 
   defp sync_project(scope, opts) do
-    # Clear all requirements before resyncing
-    Requirements.clear_all_project_requirements(scope)
-
     case Sync.sync_all(scope, opts) do
       {:ok, result} ->
         {:ok, result}

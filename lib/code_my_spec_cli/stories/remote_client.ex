@@ -15,6 +15,9 @@ defmodule CodeMySpecCli.Stories.RemoteClient do
       {:ok, %{status: 200, body: %{"data" => stories}}} ->
         Enum.map(stories, &deserialize_story/1)
 
+      {:ok, %{status: 401}} ->
+        raise "Authentication failed. Please run 'codemyspec auth login' to re-authenticate."
+
       {:error, reason} ->
         raise "Failed to list stories: #{inspect(reason)}"
     end
@@ -24,6 +27,9 @@ defmodule CodeMySpecCli.Stories.RemoteClient do
     case get_request(scope, "/api/stories-list/project") do
       {:ok, %{status: 200, body: %{"data" => stories}}} ->
         Enum.map(stories, &deserialize_story/1)
+
+      {:ok, %{status: 401}} ->
+        raise "Authentication failed. Please run 'codemyspec auth login' to re-authenticate."
 
       {:error, reason} ->
         raise "Failed to list project stories: #{inspect(reason)}"
@@ -35,6 +41,9 @@ defmodule CodeMySpecCli.Stories.RemoteClient do
       {:ok, %{status: 200, body: %{"data" => stories}}} ->
         Enum.map(stories, &deserialize_story/1)
 
+      {:ok, %{status: 401}} ->
+        raise "Authentication failed. Please run 'codemyspec auth login' to re-authenticate."
+
       {:error, reason} ->
         raise "Failed to list project stories by component priority: #{inspect(reason)}"
     end
@@ -44,6 +53,9 @@ defmodule CodeMySpecCli.Stories.RemoteClient do
     case get_request(scope, "/api/stories-list/unsatisfied") do
       {:ok, %{status: 200, body: %{"data" => stories}}} ->
         Enum.map(stories, &deserialize_story/1)
+
+      {:ok, %{status: 401}} ->
+        raise "Authentication failed. Please run 'codemyspec auth login' to re-authenticate."
 
       {:error, reason} ->
         raise "Failed to list unsatisfied stories: #{inspect(reason)}"

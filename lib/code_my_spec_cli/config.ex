@@ -49,6 +49,40 @@ defmodule CodeMySpecCli.Config do
   end
 
   @doc """
+  Gets the account ID from the local config file.
+  Returns {:ok, account_id} or {:error, reason}
+  """
+  @spec get_account_id(String.t() | nil) :: {:ok, String.t()} | {:error, atom()}
+  def get_account_id(working_dir \\ nil) do
+    case read_config(working_dir) do
+      {:ok, config} ->
+        case config["account_id"] do
+          nil -> {:error, :account_id_not_set}
+          id when is_binary(id) -> {:ok, id}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Sets the account ID in the local config file.
+  Creates the config file if it doesn't exist.
+  """
+  @spec set_account_id(String.t()) :: :ok | {:error, term()}
+  def set_account_id(account_id) when is_binary(account_id) do
+    config =
+      case read_config() do
+        {:ok, existing} -> existing
+        {:error, _} -> %{}
+      end
+
+    updated_config = Map.put(config, "account_id", account_id)
+    write_config(updated_config)
+  end
+
+  @doc """
   Gets the module name from the local config file.
   Returns {:ok, module_name} or {:error, reason}
   """

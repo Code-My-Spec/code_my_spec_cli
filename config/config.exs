@@ -15,6 +15,9 @@ config :code_my_spec, CodeMySpec.Repo,
 config :code_my_spec,
   ecto_repos: [CodeMySpec.Repo]
 
+# Use remote API for stories (connects to Postgres via Phoenix server)
+config :code_my_spec, :stories_implementation, CodeMySpecCli.Stories.RemoteClient
+
 # Disable console logging to prevent cluttering the TUI
 config :logger, :default_handler, false
 
