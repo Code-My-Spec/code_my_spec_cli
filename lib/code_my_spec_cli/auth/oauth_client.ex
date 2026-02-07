@@ -189,15 +189,20 @@ defmodule CodeMySpecCli.Auth.OAuthClient do
   Get a valid access token from the database, refreshing if necessary.
   """
   def get_token do
+    Logger.debug("[OAuthClient.get_token] Getting current user...")
     case get_current_user() do
       {:ok, user} ->
+        Logger.debug("[OAuthClient.get_token] User found: #{user.email}, expires_at: #{inspect(user.oauth_expires_at)}")
         if token_expired?(user) do
+          Logger.debug("[OAuthClient.get_token] Token expired, refreshing...")
           refresh_token_for_user(user)
         else
+          Logger.debug("[OAuthClient.get_token] Token valid, returning")
           {:ok, user.oauth_token}
         end
 
-      {:error, _} ->
+      {:error, reason} ->
+        Logger.warning("[OAuthClient.get_token] No current user: #{inspect(reason)}")
         {:error, :not_authenticated}
     end
   end
@@ -238,14 +243,23 @@ defmodule CodeMySpecCli.Auth.OAuthClient do
   # Private functions
 
   defp get_current_user do
+    config_path = CodeMySpecCli.Config.get_config_path()
+    Logger.debug("[OAuthClient.get_current_user] Config path: #{config_path}")
+    Logger.debug("[OAuthClient.get_current_user] Working dir: #{CodeMySpecCli.Config.get_working_dir()}")
     case CodeMySpecCli.Config.get_current_user_email() do
       {:ok, email} ->
+        Logger.debug("[OAuthClient.get_current_user] Email from config: #{email}")
         case CodeMySpec.Repo.get_by(CodeMySpec.ClientUsers.ClientUser, email: email) do
-          nil -> {:error, :not_found}
-          user -> {:ok, user}
+          nil ->
+            Logger.warning("[OAuthClient.get_current_user] User not found in database for email: #{email}")
+            {:error, :not_found}
+          user ->
+            Logger.debug("[OAuthClient.get_current_user] Found user in DB: #{user.id}")
+            {:ok, user}
         end
 
-      {:error, _} ->
+      {:error, reason} ->
+        Logger.warning("[OAuthClient.get_current_user] No email in config: #{inspect(reason)}")
         {:error, :no_current_user}
     end
   end

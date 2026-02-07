@@ -1,10 +1,9 @@
 defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
   @moduledoc """
-  Start an agent task session and output the first interaction prompt.
+  CLI wrapper for starting agent task sessions.
 
-  Creates a database Session with the Claude session ID stored as external_conversation_id,
-  looks up the component by module name, and calls the appropriate AgentTask module to
-  generate the prompt.
+  Delegates to CodeMySpec.Sessions.AgentTasks.StartAgentTask for core logic,
+  adding CLI-specific working directory resolution and output formatting.
 
   ## Usage
 
@@ -17,208 +16,38 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
   On error: Outputs error message to stderr.
   """
 
-  require Logger
-
   use CodeMySpecCli.SlashCommands.SlashCommandBehaviour
 
-  alias CodeMySpec.Components
-  alias CodeMySpec.ProjectSync.Sync
-  alias CodeMySpec.Sessions
-  alias CodeMySpec.Sessions.AgentTasks
-
-  # Maps CLI session type names to AgentTask modules
-  # Note: "spec" is handled specially in resolve_session_type/2 to auto-detect context vs component
-  @session_type_map %{
-    "component_spec" => AgentTasks.ComponentSpec,
-    "context_spec" => AgentTasks.ContextSpec,
-    "context_component_specs" => AgentTasks.ContextComponentSpecs,
-    "context_design_review" => AgentTasks.ContextDesignReview,
-    "implement_context" => AgentTasks.ContextImplementation,
-    "component_code" => AgentTasks.ComponentCode,
-    "component_test" => AgentTasks.ComponentTest,
-    "project_setup" => AgentTasks.ProjectSetup,
-    "architecture_design" => AgentTasks.ArchitectureDesign,
-    "architecture_review" => AgentTasks.ArchitectureReview
-  }
-
-  # Tasks that don't require a component/module_name
-  @componentless_tasks ["project_setup", "architecture_design", "architecture_review"]
-
-  @valid_types ["spec" | Map.keys(@session_type_map)]
+  alias CodeMySpec.Sessions.AgentTasks.StartAgentTask, as: DomainStartAgentTask
 
   def execute(scope, args) do
-    external_id = Map.get(args, :external_id)
-    session_type = Map.get(args, :session_type)
-    module_name = Map.get(args, :module_name)
-    working_dir = Map.get(args, :working_dir)
+    require Logger
+    Logger.info("[StartAgentTask CLI] execute called with args: #{inspect(Map.keys(args))}")
 
     # Resolve working_dir - use explicit arg or find project root
-    resolved_working_dir = working_dir || CodeMySpecCli.Config.get_working_dir()
+    working_dir = Map.get(args, :working_dir) || CodeMySpecCli.Config.get_working_dir()
+    args = Map.put(args, :working_dir, working_dir)
+    Logger.debug("[StartAgentTask CLI] working_dir: #{working_dir}")
 
-    if session_type in @componentless_tasks do
-      execute_componentless_task(scope, external_id, session_type, resolved_working_dir)
-    else
-      execute_component_task(scope, external_id, session_type, module_name, resolved_working_dir)
+    case DomainStartAgentTask.run(scope, args) do
+      {:ok, prompt, sync_result} ->
+        Logger.info("[StartAgentTask CLI] Success, prompt length: #{if is_binary(prompt), do: String.length(prompt), else: "NOT A STRING: #{inspect(prompt)}"}")
+        output_sync_metrics(sync_result)
+        IO.puts(prompt)
+        :ok
+
+      {:error, reason} ->
+        Logger.error("[StartAgentTask CLI] Error: #{inspect(reason)}")
+        IO.puts(:stderr, "Error: #{format_error(reason)}")
+        {:error, reason}
     end
   rescue
     error ->
+      require Logger
+      Logger.error("[StartAgentTask CLI] Exception: #{Exception.message(error)}")
+      Logger.error("[StartAgentTask CLI] Stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)}")
       IO.puts(:stderr, "Error: #{Exception.message(error)}")
       {:error, Exception.message(error)}
-  end
-
-  defp execute_componentless_task(scope, external_id, session_type, working_dir) do
-    with {:ok, _} <- validate_external_id(external_id),
-         {:ok, project} <- get_project(scope),
-         {:ok, sync_result} <- sync_project(scope, base_dir: working_dir),
-         {:ok, agent_task_module} <- resolve_session_type(session_type, nil),
-         {:ok, task_session} <- build_componentless_task_session(external_id, project, working_dir),
-         {:ok, prompt} <- agent_task_module.command(scope, task_session) do
-      output_sync_metrics(sync_result)
-      IO.puts(prompt)
-      :ok
-    else
-      {:error, reason} ->
-        IO.puts(:stderr, "Error: #{format_error(reason)}")
-        {:error, reason}
-    end
-  end
-
-  defp execute_component_task(scope, external_id, session_type, module_name, working_dir) do
-    # Fetch component before resolving session type so "spec" can auto-detect
-    with {:ok, _} <- validate_external_id(external_id),
-         {:ok, project} <- get_project(scope),
-         {:ok, sync_result} <- sync_project(scope, base_dir: working_dir),
-         {:ok, component} <- get_component(scope, module_name),
-         {:ok, agent_task_module} <- resolve_session_type(session_type, component),
-         {:ok, _db_session} <- create_session(scope, external_id, agent_task_module, component),
-         {:ok, task_session} <- build_task_session(external_id, component, project, working_dir),
-         {:ok, prompt} <- agent_task_module.command(scope, task_session) do
-      output_sync_metrics(sync_result)
-      # Output just the prompt for Claude to consume
-      IO.puts(prompt)
-      :ok
-    else
-      {:error, reason} ->
-        IO.puts(:stderr, "Error: #{format_error(reason)}")
-        {:error, reason}
-    end
-  end
-
-  defp validate_external_id(nil) do
-    {:error, "External ID is required. Use -e or --external-id with the Claude session ID"}
-  end
-
-  defp validate_external_id(external_id) when is_binary(external_id), do: {:ok, external_id}
-
-  defp resolve_session_type(nil, _component) do
-    {:error, "Session type is required. Valid types: #{Enum.join(@valid_types, ", ")}"}
-  end
-
-  # Auto-detect context vs component spec based on module structure
-  defp resolve_session_type("spec", component) do
-    if Components.context?(component) do
-      {:ok, AgentTasks.ContextSpec}
-    else
-      {:ok, AgentTasks.ComponentSpec}
-    end
-  end
-
-  defp resolve_session_type(name, _component) do
-    case Map.get(@session_type_map, name) do
-      nil ->
-        {:error, "Unknown session type: #{name}. Valid types: #{Enum.join(@valid_types, ", ")}"}
-
-      module ->
-        {:ok, module}
-    end
-  end
-
-  defp get_component(_scope, nil) do
-    {:error, "Module name is required. Use -m or --module-name"}
-  end
-
-  defp get_component(nil, _module_name) do
-    {:error,
-     "No project configured. Run the CLI in a directory with .code_my_spec/config.yml or run /init first."}
-  end
-
-  defp get_component(scope, module_name) do
-    Logger.debug("get_component: scope.active_project_id=#{inspect(scope.active_project_id)}, module_name=#{inspect(module_name)}")
-    case Components.get_component_by_module_name(scope, module_name) do
-      nil ->
-        Logger.debug("get_component: NOT FOUND")
-        {:error, "Component not found with module name: #{module_name}"}
-      component ->
-        Logger.debug("get_component: FOUND component.id=#{component.id}")
-        {:ok, component}
-    end
-  end
-
-  defp get_project(nil) do
-    {:error,
-     "No project configured. Run the CLI in a directory with .code_my_spec/config.yml or run /init first."}
-  end
-
-  defp get_project(scope) do
-    case scope.active_project do
-      nil -> {:error, "No active project. Please set an active project."}
-      project -> {:ok, project}
-    end
-  end
-
-  defp create_session(scope, external_id, session_module, component) do
-    Sessions.create_session(scope, %{
-      type: session_module,
-      environment_type: :cli,
-      agent: :claude_code,
-      execution_mode: :manual,
-      component_id: component.id,
-      external_conversation_id: external_id
-    })
-  end
-
-  defp build_task_session(external_id, component, project, working_dir) do
-    {:ok,
-     %{
-       external_id: external_id,
-       component: component,
-       project: project,
-       environment_type: :cli,
-       working_dir: working_dir
-     }}
-  end
-
-  defp build_componentless_task_session(external_id, project, working_dir) do
-    {:ok,
-     %{
-       external_id: external_id,
-       project: project,
-       environment_type: :cli,
-       working_dir: working_dir,
-       environment: build_environment(working_dir)
-     }}
-  end
-
-  defp build_environment(nil), do: build_environment(File.cwd!())
-
-  defp build_environment(working_dir) do
-    alias CodeMySpec.Environments.Environment
-    %Environment{type: :local, cwd: working_dir, ref: %{working_dir: working_dir}}
-  end
-
-  defp sync_project(nil, _opts) do
-    {:error,
-     "No project configured. Run the CLI in a directory with .code_my_spec/config.yml or run /init first."}
-  end
-
-  defp sync_project(scope, opts) do
-    case Sync.sync_all(scope, opts) do
-      {:ok, result} ->
-        {:ok, result}
-
-      {:error, reason} ->
-        {:error, "Sync failed: #{inspect(reason)}"}
-    end
   end
 
   defp output_sync_metrics(%{timings: timings}) do

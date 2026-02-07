@@ -18,6 +18,7 @@ defmodule CodeMySpecCli.Hooks do
 
   require Logger
 
+  alias CodeMySpec.Projects.Lifecycle
   alias CodeMySpec.Sessions.AgentTasks.{TrackEdits, ValidateEdits}
   alias CodeMySpec.Sessions
   alias CodeMySpecCli.SlashCommands.EvaluateAgentTask
@@ -72,26 +73,33 @@ defmodule CodeMySpecCli.Hooks do
     # Additionally run EvaluateAgentTask if there's an active session for this Claude session
     scope = CodeMySpecCli.Scope.get()
 
-    case Sessions.get_active_session_by_external_id(scope, claude_session_id) do
-      %{id: session_id} = session ->
-        Logger.info(
-          "[Hooks] Found active session #{session_id} for Claude session #{claude_session_id}"
-        )
+    eval_result =
+      case Sessions.get_active_session_by_external_id(scope, claude_session_id) do
+        %{id: session_id} = session ->
+          Logger.info(
+            "[Hooks] Found active session #{session_id} for Claude session #{claude_session_id}"
+          )
 
-        args = %{session_id: session.id}
-        args = if cwd, do: Map.put(args, :working_dir, cwd), else: args
+          args = %{session_id: session.id}
+          args = if cwd, do: Map.put(args, :working_dir, cwd), else: args
 
-        eval_result = EvaluateAgentTask.run(scope, args)
-        # Merge results, prioritizing any blocking decision from validation
-        merge_hook_results(validate_result, eval_result)
+          EvaluateAgentTask.run(scope, args)
 
-      nil ->
-        Logger.info(
-          "[Hooks] No active session for Claude session #{claude_session_id}, only ValidateEdits ran"
-        )
+        nil ->
+          Logger.info(
+            "[Hooks] No active session for Claude session #{claude_session_id}, only ValidateEdits ran"
+          )
 
-        validate_result
-    end
+          %{}
+      end
+
+    # Run Projects.Lifecycle if agentic_mode is enabled
+    lifecycle_result = dispatch_lifecycle_check(scope, cwd)
+
+    # Merge all results, prioritizing any blocking decision
+    validate_result
+    |> merge_hook_results(eval_result)
+    |> merge_hook_results(lifecycle_result)
   end
 
   defp dispatch(%{"hook_event_name" => "Stop"} = hook_input) do
@@ -130,6 +138,27 @@ defmodule CodeMySpecCli.Hooks do
       :error ->
         Logger.warning("[Hooks] No session_id in hook input, skipping validation")
         %{}
+    end
+  end
+
+  defp dispatch_lifecycle_check(nil, _cwd) do
+    Logger.debug("[Hooks] No scope, skipping lifecycle check")
+    %{}
+  end
+
+  defp dispatch_lifecycle_check(scope, cwd) do
+    project = scope.active_project
+
+    if project && project.agentic_mode do
+      Logger.info("[Hooks] Agentic mode enabled, running lifecycle check")
+      opts = if cwd, do: [working_dir: cwd], else: []
+
+      scope
+      |> Lifecycle.evaluate(opts)
+      |> Lifecycle.format_hook_result(scope)
+    else
+      Logger.debug("[Hooks] Agentic mode not enabled, skipping lifecycle check")
+      %{}
     end
   end
 

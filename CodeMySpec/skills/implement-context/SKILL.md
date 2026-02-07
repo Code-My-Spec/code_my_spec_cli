@@ -2,8 +2,10 @@
 name: implement-context
 description: Generate tests and implementations for a context and its child components
 user-invocable: true
-allowed-tools: Bash(mix cli *), Read, Task
+allowed-tools: Bash(*/agent-task *), Read, Write, Glob, Grep, Task
 argument-hint: [ContextModuleName]
 ---
 
-!`PROJECT_DIR=$(pwd) && cd ${CLAUDE_PLUGIN_ROOT}/.. && mix cli start-agent-task -e ${CLAUDE_SESSION_ID} -t implement_context -m $ARGUMENTS -w $PROJECT_DIR`
+!`${CLAUDE_PLUGIN_ROOT}/.claude-plugin/bin/agent-task implement_context ${CLAUDE_SESSION_ID} $ARGUMENTS`
+
+The response is JSON with a `prompt` field containing your instructions. Extract and follow the prompt.

@@ -27,6 +27,17 @@ defmodule CodeMySpecCli.Cli do
           about: "Generate production-quality Phoenix code using Claude Code orchestration",
           allow_unknown_args: false,
           parse_double_dash: true,
+          options: [
+            working_dir: [
+              value_name: "WORKING_DIR",
+              short: "-w",
+              long: "--working-dir",
+              help: "Project working directory (defaults to current directory)",
+              required: false,
+              parser: :string,
+              global: true
+            ]
+          ],
           subcommands: [
             login: [
               name: "login",
@@ -40,70 +51,9 @@ defmodule CodeMySpecCli.Cli do
               name: "whoami",
               about: "Show current authenticated user (triggers token refresh if expired)"
             ],
-            start_agent_task: [
-              name: "start-agent-task",
-              about: "Start an agent task session and get the first prompt",
-              options: [
-                external_id: [
-                  value_name: "EXTERNAL_ID",
-                  short: "-e",
-                  long: "--external-id",
-                  help: "Claude session ID (from ${CLAUDE_SESSION_ID} in skills)",
-                  required: true,
-                  parser: :string
-                ],
-                session_type: [
-                  value_name: "SESSION_TYPE",
-                  short: "-t",
-                  long: "--session-type",
-                  help: "Session type (e.g., 'component_spec')",
-                  required: true,
-                  parser: :string
-                ],
-                module_name: [
-                  value_name: "MODULE_NAME",
-                  short: "-m",
-                  long: "--module-name",
-                  help: "Component module name (e.g., 'MyApp.Accounts') - required for most tasks",
-                  required: false,
-                  parser: :string
-                ],
-                working_dir: [
-                  value_name: "WORKING_DIR",
-                  short: "-w",
-                  long: "--working-dir",
-                  help: "Project working directory (defaults to current directory)",
-                  required: false,
-                  parser: :string
-                ]
-              ]
-            ],
-            evaluate_agent_task: [
-              name: "evaluate-agent-task",
-              about: "Evaluate/validate an agent task session's output",
-              options: [
-                session_id: [
-                  value_name: "SESSION_ID",
-                  short: "-s",
-                  long: "--session-id",
-                  help: "Session ID from start-agent-task",
-                  required: true,
-                  parser: :string
-                ]
-              ]
-            ],
-            evaluate_agent_task: [
-              name: "evaluate-agent-task",
-              about: "Evaluate/validate an agent task session's output"
-            ],
-            hook: [
-              name: "hook",
-              about:
-                "Run a Claude Code hook handler (reads JSON from stdin, routes by hook_event_name, outputs JSON)"
-            ],
             init: [
               name: "init",
-              about: "Initialize CodeMySpec in the current directory (creates .code_my_spec/config.yml)",
+              about: "Initialize CodeMySpec in a directory (creates .code_my_spec/config.yml)",
               options: [
                 project_id: [
                   value_name: "PROJECT_ID",
@@ -119,17 +69,45 @@ defmodule CodeMySpecCli.Cli do
               name: "mcp",
               about: "Start MCP server with stdio transport (for Claude Code plugin integration)"
             ],
+            server: [
+              name: "server",
+              about: "Manage the CodeMySpec HTTP server for local MCP connections",
+              args: [
+                action: [
+                  value_name: "ACTION",
+                  help: "Action: install, uninstall, start, stop, status, run",
+                  required: true,
+                  parser: fn s ->
+                    case s do
+                      "install" -> {:ok, :install}
+                      "uninstall" -> {:ok, :uninstall}
+                      "start" -> {:ok, :start}
+                      "stop" -> {:ok, :stop}
+                      "status" -> {:ok, :status}
+                      "run" -> {:ok, :run}
+                      _ -> {:error, "Invalid action: #{s}. Must be one of: install, uninstall, start, stop, status, run"}
+                    end
+                  end
+                ]
+              ]
+            ],
             sync: [
               name: "sync",
-              about: "Sync project components and regenerate architecture views",
-              options: [
-                working_dir: [
-                  value_name: "WORKING_DIR",
-                  short: "-w",
-                  long: "--working-dir",
-                  help: "Project working directory (defaults to current directory)",
-                  required: false,
-                  parser: :string
+              about: "Sync project components and regenerate architecture views"
+            ],
+            set_agentic_mode: [
+              name: "set-agentic-mode",
+              about: "Enable or disable agentic mode for continuous project work",
+              flags: [
+                enable: [
+                  short: "-e",
+                  long: "--enable",
+                  help: "Enable agentic mode"
+                ],
+                disable: [
+                  short: "-d",
+                  long: "--disable",
+                  help: "Disable agentic mode"
                 ]
               ]
             ]
@@ -208,13 +186,22 @@ defmodule CodeMySpecCli.Cli do
     end
   end
 
-  defp run_mcp_server do
+  defp run_mcp_server(opts) do
     require Logger
 
     Logger.info("[MCP] Starting MCP server...")
 
+    # Store the project working directory for MCP tools to use
+    # This is where Claude Code is running, not where the CLI binary lives
+    working_dir = opts[:working_dir] || File.cwd!()
+    Application.put_env(:code_my_spec, :mcp_working_dir, working_dir)
+    Logger.info("[MCP] Working directory: #{working_dir}")
+
     # Set up scope resolver for STDIO transport (no plug to provide scope)
-    Application.put_env(:code_my_spec, :scope_resolver, &CodeMySpecCli.Scope.get/0)
+    # Use a closure to capture working_dir so scope loads config from the right directory
+    Application.put_env(:code_my_spec, :scope_resolver, fn ->
+      CodeMySpecCli.Scope.get(working_dir)
+    end)
 
     try do
       Logger.debug("[MCP] Checking Hermes.Server.Registry...")
@@ -229,6 +216,7 @@ defmodule CodeMySpecCli.Cli do
           [{CodeMySpec.McpServers.ArchitectureServer, transport: :stdio}]
         else
           Logger.debug("[MCP] Starting Hermes.Server.Registry...")
+
           [
             Hermes.Server.Registry,
             {CodeMySpec.McpServers.ArchitectureServer, transport: :stdio}
@@ -251,7 +239,10 @@ defmodule CodeMySpecCli.Cli do
       end
     rescue
       e ->
-        Logger.error("[MCP] EXCEPTION: #{Exception.message(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}")
+        Logger.error(
+          "[MCP] EXCEPTION: #{Exception.message(e)}\n#{Exception.format_stacktrace(__STACKTRACE__)}"
+        )
+
         reraise e, __STACKTRACE__
     catch
       kind, reason ->
@@ -271,23 +262,20 @@ defmodule CodeMySpecCli.Cli do
       {[:whoami], _} ->
         run_whoami()
 
-      {[:start_agent_task], %{options: opts}} ->
-        CodeMySpecCli.SlashCommands.StartAgentTask.run(opts)
-
-      {[:evaluate_agent_task], %{options: opts}} ->
-        CodeMySpecCli.SlashCommands.EvaluateAgentTask.run(opts)
-
-      {[:hook], _} ->
-        CodeMySpecCli.Hooks.run()
-
       {[:init], %{options: opts}} ->
         CodeMySpecCli.Commands.Init.run(opts)
 
-      {[:mcp], _} ->
-        run_mcp_server()
+      {[:mcp], %{options: opts}} ->
+        run_mcp_server(opts)
+
+      {[:server], %{args: %{action: action}, options: opts}} ->
+        CodeMySpecCli.Commands.Server.run(action, opts)
 
       {[:sync], %{options: opts}} ->
         CodeMySpecCli.SlashCommands.Sync.run(opts)
+
+      {[:set_agentic_mode], %{options: opts, flags: flags}} ->
+        CodeMySpecCli.SlashCommands.SetAgenticMode.run(Map.merge(opts, flags))
 
       _ ->
         # No subcommand - show help

@@ -12,22 +12,37 @@ defmodule CodeMySpecCli.Application do
   @impl true
   def start(_type, _start_args) do
     ensure_db_directory()
-    ensure_log_directory()
-    setup_file_logger()
 
-    args = get_cli_args()
+    if Mix.env() == :prod do
+      ensure_log_directory()
+      setup_file_logger()
+    end
 
-    children = [
-      CodeMySpecCli.WebServer.Telemetry,
-      CodeMySpec.Repo,
-      CodeMySpec.Vault,
-      {Phoenix.PubSub, name: CodeMySpec.PubSub},
-      {Registry, keys: :unique, name: CodeMySpecCli.Registry},
-      CodeMySpec.Sessions.InteractionRegistry,
-      {CodeMySpecCli.CliRunner, args}
-    ]
+    children =
+      [
+        CodeMySpec.Repo,
+        CodeMySpec.Vault,
+        {Phoenix.PubSub, name: CodeMySpec.PubSub},
+        {Registry, keys: :unique, name: CodeMySpecCli.Registry},
+        Hermes.Server.Registry
+      ] ++ server_children()
 
     Supervisor.start_link(children, strategy: :one_for_one, name: CodeMySpecCli.Supervisor)
+  end
+
+  defp server_children do
+    if Mix.env() == :test do
+      []
+    else
+      args = get_cli_args()
+
+      [
+        CodeMySpecCli.WebServer.Telemetry,
+        {CodeMySpec.McpServers.ArchitectureServer, transport: {:streamable_http, start: true}},
+        CodeMySpec.LocalServer,
+        {CodeMySpecCli.CliRunner, args}
+      ]
+    end
   end
 
   defp get_cli_args do

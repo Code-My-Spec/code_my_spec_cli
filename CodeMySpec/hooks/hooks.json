@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd ${CLAUDE_PLUGIN_ROOT}/.. && mix cli hook"
+            "command": "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/bin/hook"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd ${CLAUDE_PLUGIN_ROOT}/.. && mix cli hook"
+            "command": "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/bin/hook"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd ${CLAUDE_PLUGIN_ROOT}/.. && mix cli hook"
+            "command": "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/bin/hook"
           }
         ]
       }

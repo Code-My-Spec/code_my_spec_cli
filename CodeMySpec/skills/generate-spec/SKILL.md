@@ -2,8 +2,10 @@
 name: generate-spec
 description: Generate a component or context specification using agent task session
 user-invocable: true
-allowed-tools: Bash(mix cli *), Read
+allowed-tools: Bash(*/agent-task *), Read, Write, Glob, Grep
 argument-hint: [ModuleName]
 ---
 
-!`PROJECT_DIR=$(pwd) && cd ${CLAUDE_PLUGIN_ROOT}/.. && mix cli start-agent-task -e ${CLAUDE_SESSION_ID} -t spec -m $ARGUMENTS -w $PROJECT_DIR`
+!`${CLAUDE_PLUGIN_ROOT}/.claude-plugin/bin/agent-task spec ${CLAUDE_SESSION_ID} $ARGUMENTS`
+
+The response is JSON with a `prompt` field containing your instructions. Extract and follow the prompt.

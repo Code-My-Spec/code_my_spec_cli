@@ -25,6 +25,7 @@ defmodule CodeMySpecCli.Commands.Login do
       end
 
     opts = if server_url, do: [server_url: server_url], else: []
+    IO.puts(server_url)
 
     # Run OAuth flow in a background task so it doesn't block the TUI
     Task.start(fn ->

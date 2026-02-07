@@ -5,8 +5,7 @@ import Dotenvy
 # This runs after compilation and before the system starts
 
 # Load environment variables from .env files
-# CLI looks in the main project's envs/ directory
-env_dir_prefix = System.get_env("RELEASE_ROOT") || Path.expand("../code_my_spec/envs")
+env_dir_prefix = System.get_env("RELEASE_ROOT") || Path.expand("./envs")
 
 source!([
   Path.absname(".env", env_dir_prefix),

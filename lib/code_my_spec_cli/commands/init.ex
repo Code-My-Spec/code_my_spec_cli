@@ -10,34 +10,36 @@ defmodule CodeMySpecCli.Commands.Init do
   alias CodeMySpecCli.Config
 
   def run(opts) do
-    case Config.get_project_id() do
+    working_dir = opts[:working_dir]
+
+    case Config.get_project_id(working_dir) do
       {:ok, existing_id} ->
         IO.puts("Already initialized with project ID: #{existing_id}")
-        IO.puts("Config file: #{Config.get_config_path()}")
+        IO.puts("Config file: #{Config.get_config_path(working_dir)}")
         :ok
 
       {:error, _} ->
-        do_init(opts)
+        do_init(opts, working_dir)
     end
   end
 
-  defp do_init(opts) do
+  defp do_init(opts, working_dir) do
     if opts[:project_id] do
-      init_with_project_id(opts[:project_id])
+      init_with_project_id(opts[:project_id], working_dir)
     else
       case OAuthClient.get_token() do
         {:ok, token} ->
-          fetch_and_select_project(token)
+          fetch_and_select_project(token, working_dir)
 
         {:error, _} ->
           # Not logged in - create config without project ID
-          init_without_project()
+          init_without_project(working_dir)
       end
     end
   end
 
-  defp init_with_project_id(project_id) do
-    app_name = detect_app_name() || "my_app"
+  defp init_with_project_id(project_id, working_dir) do
+    app_name = detect_app_name(working_dir) || "my_app"
     module_name = app_name |> Macro.camelize()
 
     config = %{
@@ -46,9 +48,9 @@ defmodule CodeMySpecCli.Commands.Init do
       "name" => app_name
     }
 
-    case Config.write_config(config) do
+    case Config.write_config(config, working_dir) do
       :ok ->
-        IO.puts("Initialized CodeMySpec in #{Config.get_config_path()}")
+        IO.puts("Initialized CodeMySpec in #{Config.get_config_path(working_dir)}")
         IO.puts("  project_id: #{project_id}")
         IO.puts("  module_name: #{module_name}")
 
@@ -58,8 +60,8 @@ defmodule CodeMySpecCli.Commands.Init do
     end
   end
 
-  defp init_without_project do
-    app_name = detect_app_name() || "my_app"
+  defp init_without_project(working_dir) do
+    app_name = detect_app_name(working_dir) || "my_app"
     module_name = app_name |> Macro.camelize()
 
     config = %{
@@ -67,9 +69,9 @@ defmodule CodeMySpecCli.Commands.Init do
       "name" => app_name
     }
 
-    case Config.write_config(config) do
+    case Config.write_config(config, working_dir) do
       :ok ->
-        IO.puts("Initialized CodeMySpec in #{Config.get_config_path()}")
+        IO.puts("Initialized CodeMySpec in #{Config.get_config_path(working_dir)}")
         IO.puts("  module_name: #{module_name}")
         IO.puts("  name: #{app_name}")
         IO.puts("")
@@ -85,7 +87,7 @@ defmodule CodeMySpecCli.Commands.Init do
     end
   end
 
-  defp fetch_and_select_project(token) do
+  defp fetch_and_select_project(token, working_dir) do
     server_url = Application.get_env(:code_my_spec, :oauth_base_url, "http://localhost:4000")
     url = "#{server_url}/api/projects"
     headers = [{"authorization", "Bearer #{token}"}]
@@ -106,7 +108,7 @@ defmodule CodeMySpecCli.Commands.Init do
         case Integer.parse(selection) do
           {num, ""} when num >= 1 and num <= length(projects) ->
             project = Enum.at(projects, num - 1)
-            save_project_config(project)
+            save_project_config(project, working_dir)
 
           _ ->
             if selection == "n" do
@@ -136,10 +138,10 @@ defmodule CodeMySpecCli.Commands.Init do
     end
   end
 
-  defp save_project_config(project) do
+  defp save_project_config(project, working_dir) do
     config = %{
       "project_id" => project["id"],
-      "module_name" => project["module_name"] || detect_app_name() |> Macro.camelize(),
+      "module_name" => project["module_name"] || detect_app_name(working_dir) |> Macro.camelize(),
       "name" => project["name"],
       "description" => project["description"],
       "code_repo" => project["code_repo"],
@@ -147,10 +149,10 @@ defmodule CodeMySpecCli.Commands.Init do
       "client_api_url" => project["client_api_url"]
     }
 
-    case Config.write_config(config) do
+    case Config.write_config(config, working_dir) do
       :ok ->
         IO.puts("\nInitialized CodeMySpec!")
-        IO.puts("  Config: #{Config.get_config_path()}")
+        IO.puts("  Config: #{Config.get_config_path(working_dir)}")
         IO.puts("  Project: #{project["name"]}")
         IO.puts("  ID: #{project["id"]}")
 
@@ -160,8 +162,9 @@ defmodule CodeMySpecCli.Commands.Init do
     end
   end
 
-  defp detect_app_name do
-    mix_exs = Path.join(File.cwd!(), "mix.exs")
+  defp detect_app_name(working_dir) do
+    base_dir = working_dir || File.cwd!()
+    mix_exs = Path.join(base_dir, "mix.exs")
 
     if File.exists?(mix_exs) do
       case File.read(mix_exs) do

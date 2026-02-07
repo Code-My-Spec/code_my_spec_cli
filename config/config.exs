@@ -18,16 +18,6 @@ config :code_my_spec,
 # Use remote API for stories (connects to Postgres via Phoenix server)
 config :code_my_spec, :stories_implementation, CodeMySpecCli.Stories.RemoteClient
 
-# Disable console logging to prevent cluttering the TUI
-config :logger, :default_handler, false
-
-# Configure file backend for logging (added via LoggerBackends in Application.start)
-config :logger, :file_log,
-  path: Path.expand("~/.codemyspec/cli.log"),
-  level: :debug,
-  format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id, :mfa]
-
 config :phoenix, :json_library, Jason
 
 config :code_my_spec, CodeMySpec.Vault,

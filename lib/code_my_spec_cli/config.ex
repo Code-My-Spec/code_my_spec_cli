@@ -198,10 +198,10 @@ defmodule CodeMySpecCli.Config do
   @doc """
   Writes the config to the file.
   """
-  @spec write_config(map()) :: :ok | {:error, term()}
-  def write_config(config) when is_map(config) do
-    config_dir = get_config_dir()
-    config_path = get_config_path()
+  @spec write_config(map(), String.t() | nil) :: :ok | {:error, term()}
+  def write_config(config, working_dir \\ nil) when is_map(config) do
+    config_dir = get_config_dir(working_dir)
+    config_path = get_config_path(working_dir)
 
     # Ensure directory exists
     File.mkdir_p!(config_dir)

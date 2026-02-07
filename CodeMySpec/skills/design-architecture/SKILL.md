@@ -2,8 +2,10 @@
 name: design-architecture
 description: Start a guided architecture design session. Maps user stories to surface components and identifies needed bounded contexts.
 user-invocable: true
-allowed-tools: Bash(mix cli *), Read, mcp__plugin_codemyspec_architecture-server__*
+allowed-tools: Bash(*/agent-task *), Read, Write, Glob, Grep, mcp__plugin_codemyspec_architecture-server__*
 argument-hint: []
 ---
 
-!`PROJECT_DIR=$(pwd) && cd ${CLAUDE_PLUGIN_ROOT}/.. && mix cli start-agent-task -e ${CLAUDE_SESSION_ID} -t architecture_design -w $PROJECT_DIR`
+!`${CLAUDE_PLUGIN_ROOT}/.claude-plugin/bin/agent-task architecture_design ${CLAUDE_SESSION_ID}`
+
+The response is JSON with a `prompt` field containing your instructions. Extract and follow the prompt.

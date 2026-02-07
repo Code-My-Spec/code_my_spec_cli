@@ -2,8 +2,10 @@
 name: review-context
 description: Review a context design and its child components for architecture issues
 user-invocable: true
-allowed-tools: Bash(mix cli *), Read, Edit
+allowed-tools: Bash(*/agent-task *), Read, Write, Edit, Glob, Grep
 argument-hint: [ContextModuleName]
 ---
 
-!`PROJECT_DIR=$(pwd) && cd ${CLAUDE_PLUGIN_ROOT}/.. && mix cli start-agent-task -e ${CLAUDE_SESSION_ID} -t context_design_review -m $ARGUMENTS -w $PROJECT_DIR`
+!`${CLAUDE_PLUGIN_ROOT}/.claude-plugin/bin/agent-task context_design_review ${CLAUDE_SESSION_ID} $ARGUMENTS`
+
+The response is JSON with a `prompt` field containing your instructions. Extract and follow the prompt.
