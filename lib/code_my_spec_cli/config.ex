@@ -150,6 +150,39 @@ defmodule CodeMySpecCli.Config do
   end
 
   @doc """
+  Gets the ignored_components list from the local config file.
+  Returns {:ok, list} or {:ok, []} if not set.
+  """
+  @spec get_ignored_components(String.t() | nil) :: {:ok, [String.t()]}
+  def get_ignored_components(working_dir \\ nil) do
+    case read_config(working_dir) do
+      {:ok, config} ->
+        case config["ignored_components"] do
+          list when is_list(list) -> {:ok, list}
+          _ -> {:ok, []}
+        end
+
+      {:error, _} ->
+        {:ok, []}
+    end
+  end
+
+  @doc """
+  Sets the ignored_components list in the local config file.
+  """
+  @spec set_ignored_components([String.t()], String.t() | nil) :: :ok | {:error, term()}
+  def set_ignored_components(components, working_dir \\ nil) when is_list(components) do
+    config =
+      case read_config(working_dir) do
+        {:ok, existing} -> existing
+        {:error, _} -> %{}
+      end
+
+    updated_config = Map.put(config, "ignored_components", components)
+    write_config(updated_config, working_dir)
+  end
+
+  @doc """
   Clears the current user email from the config file.
   Call this on logout.
   """
@@ -206,19 +239,11 @@ defmodule CodeMySpecCli.Config do
     # Ensure directory exists
     File.mkdir_p!(config_dir)
 
-    # Convert to YAML manually (simple key-value format)
+    # Convert to YAML manually (simple key-value format, with list support)
     yaml =
       config
       |> Enum.map_join("\n", fn {key, value} ->
-        # Quote strings if they contain special characters
-        formatted_value =
-          if is_binary(value) and String.contains?(value, [":", "@"]) do
-            "\"#{value}\""
-          else
-            value
-          end
-
-        "#{key}: #{formatted_value}"
+        format_yaml_entry(key, value)
       end)
       |> Kernel.<>("\n")
 
@@ -284,4 +309,23 @@ defmodule CodeMySpecCli.Config do
   def get_config_path(working_dir \\ nil) do
     Path.join(get_config_dir(working_dir), @config_file)
   end
+
+  defp format_yaml_entry(key, value) when is_list(value) do
+    items = Enum.map_join(value, "\n", fn item -> "  - #{format_yaml_value(item)}" end)
+    "#{key}:\n#{items}"
+  end
+
+  defp format_yaml_entry(key, value) do
+    "#{key}: #{format_yaml_value(value)}"
+  end
+
+  defp format_yaml_value(value) when is_binary(value) do
+    if String.contains?(value, [":", "@"]) do
+      "\"#{value}\""
+    else
+      value
+    end
+  end
+
+  defp format_yaml_value(value), do: value
 end
