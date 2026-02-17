@@ -94,31 +94,7 @@ defmodule CodeMySpecCli.Commands.Init do
 
     case Req.get(url, headers: headers) do
       {:ok, %{status: 200, body: %{"projects" => projects}}} when projects != [] ->
-        IO.puts("\nAvailable projects:\n")
-
-        projects
-        |> Enum.with_index(1)
-        |> Enum.each(fn {p, idx} ->
-          IO.puts("  #{idx}. #{p["name"]} (#{p["id"]})")
-        end)
-
-        IO.puts("")
-        selection = IO.gets("Select project number (or 'n' for new): ") |> String.trim()
-
-        case Integer.parse(selection) do
-          {num, ""} when num >= 1 and num <= length(projects) ->
-            project = Enum.at(projects, num - 1)
-            save_project_config(project, working_dir)
-
-          _ ->
-            if selection == "n" do
-              IO.puts(:stderr, "Create a new project at https://codemyspec.com first, then run init again.")
-              System.halt(1)
-            else
-              IO.puts(:stderr, "Invalid selection")
-              System.halt(1)
-            end
-        end
+        prompt_project_selection(projects, working_dir)
 
       {:ok, %{status: 200, body: %{"projects" => []}}} ->
         IO.puts(:stderr, "No projects found. Create one at https://codemyspec.com first.")
@@ -138,9 +114,41 @@ defmodule CodeMySpecCli.Commands.Init do
     end
   end
 
+  defp prompt_project_selection(projects, working_dir) do
+    IO.puts("\nAvailable projects:\n")
+
+    projects
+    |> Enum.with_index(1)
+    |> Enum.each(fn {p, idx} ->
+      IO.puts("  #{idx}. #{p["name"]} (#{p["id"]})")
+    end)
+
+    IO.puts("")
+    selection = IO.gets("Select project number (or 'n' for new): ") |> String.trim()
+    handle_selection(selection, projects, working_dir)
+  end
+
+  defp handle_selection("n", _projects, _working_dir) do
+    IO.puts(:stderr, "Create a new project at https://codemyspec.com first, then run init again.")
+    System.halt(1)
+  end
+
+  defp handle_selection(selection, projects, working_dir) do
+    case Integer.parse(selection) do
+      {num, ""} when num >= 1 and num <= length(projects) ->
+        project = Enum.at(projects, num - 1)
+        save_project_config(project, working_dir)
+
+      _ ->
+        IO.puts(:stderr, "Invalid selection")
+        System.halt(1)
+    end
+  end
+
   defp save_project_config(project, working_dir) do
     config = %{
       "project_id" => project["id"],
+      "account_id" => project["account_id"],
       "module_name" => project["module_name"] || detect_app_name(working_dir) |> Macro.camelize(),
       "name" => project["name"],
       "description" => project["description"],
@@ -166,19 +174,12 @@ defmodule CodeMySpecCli.Commands.Init do
     base_dir = working_dir || File.cwd!()
     mix_exs = Path.join(base_dir, "mix.exs")
 
-    if File.exists?(mix_exs) do
-      case File.read(mix_exs) do
-        {:ok, content} ->
-          case Regex.run(~r/app:\s*:(\w+)/, content) do
-            [_, app_name] -> app_name
-            _ -> nil
-          end
-
-        _ ->
-          nil
-      end
+    with true <- File.exists?(mix_exs),
+         {:ok, content} <- File.read(mix_exs),
+         [_, app_name] <- Regex.run(~r/app:\s*:(\w+)/, content) do
+      app_name
     else
-      nil
+      _ -> nil
     end
   end
 end
