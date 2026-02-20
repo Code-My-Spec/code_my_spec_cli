@@ -1,6 +1,6 @@
 ---
 name: implement-context
-description: Generate tests and implementations for a context and its child components
+description: Implement a context and its child components via subagents. Builds in dependency order: schemas, repositories, services, then context module.
 user-invocable: true
 allowed-tools: Bash(*/agent-task *), Read, Write, Glob, Grep, Task
 argument-hint: [ContextModuleName]

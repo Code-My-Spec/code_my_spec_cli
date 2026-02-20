@@ -1,6 +1,6 @@
 ---
 name: generate-spec
-description: Generate a component or context specification using agent task session
+description: Generate a component or context specification. Uses design rules, user stories, and similar components to produce a validated spec.
 user-invocable: true
 allowed-tools: Bash(*/agent-task *), Read, Write, Glob, Grep
 argument-hint: [ModuleName]

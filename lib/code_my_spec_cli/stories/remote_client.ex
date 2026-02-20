@@ -8,6 +8,7 @@ defmodule CodeMySpecCli.Stories.RemoteClient do
 
   alias CodeMySpec.Stories.Story
   alias CodeMySpec.Users.Scope
+  alias CodeMySpecCli.Auth.OAuthClient
 
   @doc """
   Returns the list of stories.
@@ -35,6 +36,43 @@ defmodule CodeMySpecCli.Stories.RemoteClient do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  def list_project_stories_paginated(%Scope{} = scope, opts \\ []) do
+    case list_project_stories(scope) do
+      {:ok, stories} ->
+        search = Keyword.get(opts, :search)
+        tag = Keyword.get(opts, :tag)
+        limit = Keyword.get(opts, :limit, 20)
+        offset = Keyword.get(opts, :offset, 0)
+
+        filtered =
+          stories
+          |> maybe_filter_search(search)
+          |> maybe_filter_tag(tag)
+
+        total = length(filtered)
+        page = filtered |> Enum.drop(offset) |> Enum.take(limit)
+        {page, total}
+
+      {:error, reason} ->
+        raise "Failed to list stories: #{inspect(reason)}"
+    end
+  end
+
+  def list_story_titles(%Scope{} = scope, opts \\ []) do
+    case list_project_stories(scope) do
+      {:ok, stories} ->
+        search = Keyword.get(opts, :search)
+
+        stories
+        |> maybe_filter_search(search)
+        |> Enum.sort_by(& &1.title)
+        |> Enum.map(&%{id: &1.id, title: &1.title, component_id: &1.component_id})
+
+      {:error, reason} ->
+        raise "Failed to list story titles: #{inspect(reason)}"
     end
   end
 
@@ -277,7 +315,7 @@ defmodule CodeMySpecCli.Stories.RemoteClient do
   end
 
   defp get_oauth_token(%Scope{} = _scope) do
-    CodeMySpecCli.Auth.OAuthClient.get_token()
+    OAuthClient.get_token()
   end
 
   defp deserialize_story(data) do
@@ -340,6 +378,27 @@ defmodule CodeMySpecCli.Stories.RemoteClient do
       {:ok, datetime, _offset} -> datetime
       {:error, _} -> nil
     end
+  end
+
+  defp maybe_filter_search(stories, nil), do: stories
+  defp maybe_filter_search(stories, ""), do: stories
+
+  defp maybe_filter_search(stories, search) do
+    term = String.downcase(search)
+
+    Enum.filter(stories, fn story ->
+      String.contains?(String.downcase(story.title || ""), term) ||
+        String.contains?(String.downcase(story.description || ""), term)
+    end)
+  end
+
+  defp maybe_filter_tag(stories, nil), do: stories
+  defp maybe_filter_tag(stories, ""), do: stories
+
+  defp maybe_filter_tag(stories, tag) do
+    Enum.filter(stories, fn story ->
+      Enum.any?(story.tags || [], &(&1.name == tag))
+    end)
   end
 
   defp build_changeset_error(attrs, body) do

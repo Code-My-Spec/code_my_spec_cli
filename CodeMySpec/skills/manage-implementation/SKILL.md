@@ -1,6 +1,6 @@
 ---
 name: manage-implementation
-description: Orchestrate the full implementation lifecycle - iteratively write BDD specs and implement contexts until all stories are complete
+description: Orchestrate the full implementation lifecycle. Enables agentic mode and loops write-bdd-specs then implement-context until all stories pass.
 user-invocable: true
 allowed-tools: Bash(*/agent-task *), Read, Write, Glob, Grep, Task
 argument-hint: []

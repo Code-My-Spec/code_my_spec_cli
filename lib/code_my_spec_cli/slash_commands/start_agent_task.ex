@@ -2,7 +2,7 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
   @moduledoc """
   CLI wrapper for starting agent task sessions.
 
-  Delegates to CodeMySpec.Sessions.AgentTasks.StartAgentTask for core logic,
+  Delegates to CodeMySpec.AgentTasks.StartAgentTask for core logic,
   adding CLI-specific working directory resolution and output formatting.
 
   ## Usage
@@ -18,7 +18,7 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
 
   use CodeMySpecCli.SlashCommands.SlashCommandBehaviour
 
-  alias CodeMySpec.Sessions.AgentTasks.StartAgentTask, as: DomainStartAgentTask
+  alias CodeMySpec.AgentTasks.StartAgentTask, as: DomainStartAgentTask
 
   def execute(scope, args) do
     require Logger

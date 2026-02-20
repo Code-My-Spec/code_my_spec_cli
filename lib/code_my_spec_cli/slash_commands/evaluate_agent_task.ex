@@ -2,7 +2,7 @@ defmodule CodeMySpecCli.SlashCommands.EvaluateAgentTask do
   @moduledoc """
   CLI wrapper for evaluating agent task sessions.
 
-  Delegates to CodeMySpec.Sessions.AgentTasks.EvaluateAgentTask for core logic,
+  Delegates to CodeMySpec.AgentTasks.EvaluateAgentTask for core logic,
   adding CLI-specific output formatting.
 
   ## Usage
@@ -19,7 +19,7 @@ defmodule CodeMySpecCli.SlashCommands.EvaluateAgentTask do
 
   use CodeMySpecCli.SlashCommands.SlashCommandBehaviour
 
-  alias CodeMySpec.Sessions.AgentTasks.EvaluateAgentTask, as: DomainEvaluate
+  alias CodeMySpec.AgentTasks.EvaluateAgentTask, as: DomainEvaluate
 
   @doc """
   Run evaluation and return the result map for hook output.

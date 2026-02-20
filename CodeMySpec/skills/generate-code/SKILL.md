@@ -1,6 +1,6 @@
 ---
 name: generate-code
-description: Generate component implementation from spec using agent task session
+description: Generate component implementation from its spec and test file. References similar components for patterns and applies coding rules.
 user-invocable: true
 allowed-tools: Bash(*/agent-task *), Read, Write, Glob, Grep
 argument-hint: [ModuleName]

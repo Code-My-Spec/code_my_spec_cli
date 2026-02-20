@@ -1,6 +1,6 @@
 ---
 name: refactor-module
-description: Start an interactive refactoring session for a component or context
+description: Start an interactive refactoring session. Reviews existing code, discusses changes, then modifies spec, tests, and implementation in order.
 user-invocable: true
 allowed-tools: Bash(*/agent-task *), Read, Write, Edit, Glob, Grep
 argument-hint: [ModuleName]

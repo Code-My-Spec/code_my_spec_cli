@@ -1,6 +1,6 @@
 ---
 name: review-context
-description: Review a context design and its child components for architecture issues
+description: Review a context design and its child specs against architecture best practices. Produces a validated design review document.
 user-invocable: true
 allowed-tools: Bash(*/agent-task *), Read, Write, Edit, Glob, Grep
 argument-hint: [ContextModuleName]

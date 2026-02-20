@@ -1,6 +1,6 @@
 ---
 name: write-bdd-specs
-description: Generate BDD specifications for all acceptance criteria. Creates executable Spex tests that define "done" for each story.
+description: Generate BDD Spex tests for the next incomplete user story. Auto-selects the story, generates shared givens, and validates specs compile.
 user-invocable: true
 allowed-tools: Bash(*/agent-task *), Read, Write, Glob, Grep
 argument-hint: []

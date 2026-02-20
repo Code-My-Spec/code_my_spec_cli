@@ -1,6 +1,6 @@
 ---
 name: stop-implementation
-description: Stop the implementation lifecycle by disabling agentic mode
+description: Stop the implementation lifecycle by disabling agentic mode. Use /manage-implementation to resume.
 user-invocable: true
 allowed-tools: Bash(*/cms *)
 argument-hint: []

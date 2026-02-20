@@ -1,17 +1,26 @@
 defmodule CodeMySpecCli.Auth.OAuthClient do
   @moduledoc """
-  OAuth2 client for CLI authentication.
+  CLI-specific OAuth2 authentication flow.
 
-  Implements authorization code flow with PKCE using a local server
-  to handle the callback.
+  Delegates core token/client management to `CodeMySpec.Auth.OAuthClient`.
+  Provides CLI-specific interactive auth flow (browser-based PKCE with local callback server).
   """
 
   require Logger
 
-  alias CodeMySpecCli.Auth.Strategy
+  alias CodeMySpec.Auth.OAuthClient, as: Core
   alias CodeMySpecCli.WebServer.Config
 
-  @client_config_file ".codemyspec_client"
+  # --- Delegated core functions ---
+
+  defdelegate get_token(), to: Core
+  defdelegate authenticated?(), to: Core
+  defdelegate get_server_url(), to: Core
+  defdelegate get_or_register_client(server_base_url), to: Core
+  defdelegate token_expired?(user), to: Core
+  defdelegate extract_expires_in(token), to: Core
+
+  # --- CLI-specific auth flow ---
 
   @doc """
   Authenticate with UI notifications.
@@ -19,14 +28,12 @@ defmodule CodeMySpecCli.Auth.OAuthClient do
   Returns the auth URL that will be opened in the browser.
   """
   def authenticate_with_ui(opts \\ []) do
-    server_base_url = opts[:server_url] || get_server_url()
-    {:ok, client_id, _client_secret} = get_or_register_client(server_base_url)
+    server_base_url = opts[:server_url] || Core.get_server_url()
+    {:ok, client_id, _client_secret} = Core.get_or_register_client(server_base_url, Config.oauth_callback_url())
 
-    # Generate PKCE for the auth URL
-    {_code_verifier, code_challenge} = generate_pkce_pair()
-    state = generate_state()
+    {_code_verifier, code_challenge} = Core.generate_pkce_pair()
+    state = Core.generate_state()
 
-    # Build auth URL
     redirect_uri = Config.oauth_callback_url()
 
     auth_url =
@@ -39,10 +46,8 @@ defmodule CodeMySpecCli.Auth.OAuthClient do
         "&scope=read+write" <>
         "&state=#{state}"
 
-    # Continue with normal authentication (this will block)
     result = authenticate(opts)
 
-    # Return both the URL and the result
     {auth_url, result}
   end
 
@@ -50,16 +55,13 @@ defmodule CodeMySpecCli.Auth.OAuthClient do
   Authenticate the user via OAuth2 authorization code flow with PKCE.
 
   Opens the user's browser and waits for the callback from the local server.
-  Returns an access token on success.
   """
   def authenticate(opts \\ []) do
-    server_base_url = opts[:server_url] || get_server_url()
+    server_base_url = opts[:server_url] || Core.get_server_url()
 
-    # Start the WebServer for OAuth callback
     web_server_pid =
       case CodeMySpecCli.WebServer.start() do
         {:ok, pid} -> pid
-        # Another instance has the server running
         {:error, :eaddrinuse} -> nil
         {:error, reason} -> raise "Failed to start WebServer for OAuth: #{inspect(reason)}"
       end
@@ -67,32 +69,29 @@ defmodule CodeMySpecCli.Auth.OAuthClient do
     try do
       do_authenticate(server_base_url)
     after
-      # Always stop the WebServer when done
       CodeMySpecCli.WebServer.stop(web_server_pid)
     end
   end
 
   defp do_authenticate(server_base_url) do
-    # Get or register OAuth client
-    {:ok, client_id, client_secret} = get_or_register_client(server_base_url)
+    {:ok, client_id, client_secret} = Core.get_or_register_client(server_base_url, Config.oauth_callback_url())
 
-    # Create OAuth2 client with PKCE
-    {code_verifier, code_challenge} = generate_pkce_pair()
-    state = generate_state()
+    {code_verifier, code_challenge} = Core.generate_pkce_pair()
+    state = Core.generate_state()
+    redirect_uri = Config.oauth_callback_url()
 
     client =
       OAuth2.Client.new(
-        strategy: Strategy,
+        strategy: CodeMySpec.Auth.Strategy,
         client_id: client_id,
         client_secret: client_secret,
         site: server_base_url,
         authorize_url: "#{server_base_url}/oauth/authorize",
         token_url: "#{server_base_url}/oauth/token",
-        redirect_uri: Config.oauth_callback_url(),
+        redirect_uri: redirect_uri,
         request_opts: build_httpc_opts(server_base_url)
       )
 
-    # Build authorization URL with PKCE
     auth_url =
       OAuth2.Client.authorize_url!(client,
         scope: "read write",
@@ -101,58 +100,28 @@ defmodule CodeMySpecCli.Auth.OAuthClient do
         state: state
       )
 
-    # Register this process to receive the callback
     Registry.register(CodeMySpecCli.Registry, {:oauth_waiting, state}, nil)
 
-    # Open browser (silently - TUI will show the URL)
     open_browser(auth_url)
 
-    # Wait for callback
     result =
       receive do
         {:oauth_callback, {:ok, code, ^state}} ->
-          params = [
-            code: code,
-            code_verifier: code_verifier,
-            client_id: client_id,
-            client_secret: client_secret,
-            grant_type: "authorization_code",
-            redirect_uri: client.redirect_uri
-          ]
-
-          case OAuth2.Client.get_token(client, params) do
-            {:ok, %OAuth2.Client{token: token}} ->
-              # Parse token response from JSON string
-              {:ok, parsed} = Jason.decode(token.access_token)
-
-              token_data = %{
-                "access_token" => parsed["access_token"],
-                "refresh_token" => parsed["refresh_token"],
-                "expires_in" => parsed["expires_in"],
-                "token_type" => parsed["token_type"] || "Bearer",
-                "scope" => parsed["scope"]
-              }
-
-              Logger.debug("OAuth token received, expires_in: #{token_data["expires_in"]}s")
-
-              # Fetch and save user info (this also saves the token to DB)
+          case Core.exchange_code_for_token(code, code_verifier, client_id, client_secret, redirect_uri) do
+            {:ok, token_data} ->
               with {:ok, %{id: user_id, email: email}} <-
-                     fetch_user_info(server_base_url, token_data["access_token"]),
-                   {:ok, _client_user} <- save_client_user(user_id, email, token_data),
+                     Core.fetch_user_info(server_base_url, token_data["access_token"]),
+                   {:ok, _client_user} <- Core.save_client_user(user_id, email, token_data),
                    :ok <- CodeMySpecCli.Config.set_current_user_email(email) do
                 :ok
               else
-                {:error, _reason} ->
-                  :ok
+                {:error, _reason} -> :ok
               end
 
               {:ok, token_data}
 
-            {:error, %OAuth2.Error{reason: reason}} ->
-              {:error, "Token exchange failed: #{inspect(reason)}"}
-
-            {:error, %OAuth2.Response{status_code: status, body: body}} ->
-              {:error, "Token exchange failed (#{status}): #{inspect(body)}"}
+            {:error, reason} ->
+              {:error, reason}
           end
 
         {:oauth_callback, {:error, error}} ->
@@ -162,7 +131,6 @@ defmodule CodeMySpecCli.Auth.OAuthClient do
           {:error, "Timeout waiting for authorization"}
       end
 
-    # Unregister
     Registry.unregister(CodeMySpecCli.Registry, {:oauth_waiting, state})
 
     result
@@ -180,266 +148,19 @@ defmodule CodeMySpecCli.Auth.OAuthClient do
   end
 
   def handle_callback({:error, error}) do
-    # For errors, we don't have the state, so we can't target a specific process
-    # Just log it for now
     Logger.error("OAuth callback error: #{error}")
   end
 
   @doc """
-  Get a valid access token from the database, refreshing if necessary.
-  """
-  def get_token do
-    Logger.debug("[OAuthClient.get_token] Getting current user...")
-    case get_current_user() do
-      {:ok, user} ->
-        Logger.debug("[OAuthClient.get_token] User found: #{user.email}, expires_at: #{inspect(user.oauth_expires_at)}")
-        if token_expired?(user) do
-          Logger.debug("[OAuthClient.get_token] Token expired, refreshing...")
-          refresh_token_for_user(user)
-        else
-          Logger.debug("[OAuthClient.get_token] Token valid, returning")
-          {:ok, user.oauth_token}
-        end
-
-      {:error, reason} ->
-        Logger.warning("[OAuthClient.get_token] No current user: #{inspect(reason)}")
-        {:error, :not_authenticated}
-    end
-  end
-
-  @doc """
-  Check if user is authenticated.
-  """
-  def authenticated? do
-    case get_token() do
-      {:ok, _token} -> true
-      {:error, _} -> false
-    end
-  end
-
-  @doc """
-  Clear stored credentials from database.
+  Clear stored credentials and config email.
   """
   def logout do
-    case get_current_user() do
-      {:ok, user} ->
-        user
-        |> CodeMySpec.ClientUsers.ClientUser.changeset(%{
-          oauth_token: nil,
-          oauth_refresh_token: nil,
-          oauth_expires_at: nil
-        })
-        |> CodeMySpec.Repo.update()
-
-        CodeMySpecCli.Config.clear_current_user_email()
-
-        :ok
-
-      {:error, _} ->
-        :ok
-    end
+    result = Core.logout()
+    CodeMySpecCli.Config.clear_current_user_email()
+    result
   end
 
-  # Private functions
-
-  defp get_current_user do
-    config_path = CodeMySpecCli.Config.get_config_path()
-    Logger.debug("[OAuthClient.get_current_user] Config path: #{config_path}")
-    Logger.debug("[OAuthClient.get_current_user] Working dir: #{CodeMySpecCli.Config.get_working_dir()}")
-    case CodeMySpecCli.Config.get_current_user_email() do
-      {:ok, email} ->
-        Logger.debug("[OAuthClient.get_current_user] Email from config: #{email}")
-        case CodeMySpec.Repo.get_by(CodeMySpec.ClientUsers.ClientUser, email: email) do
-          nil ->
-            Logger.warning("[OAuthClient.get_current_user] User not found in database for email: #{email}")
-            {:error, :not_found}
-          user ->
-            Logger.debug("[OAuthClient.get_current_user] Found user in DB: #{user.id}")
-            {:ok, user}
-        end
-
-      {:error, reason} ->
-        Logger.warning("[OAuthClient.get_current_user] No email in config: #{inspect(reason)}")
-        {:error, :no_current_user}
-    end
-  end
-
-  def get_or_register_client(server_base_url) do
-    config_path = Path.join(System.user_home!(), @client_config_file)
-
-    case File.read(config_path) do
-      {:ok, content} ->
-        data = Jason.decode!(content)
-
-        # Check if client is for the same server
-        if data["server_url"] == server_base_url do
-          {:ok, data["client_id"], data["client_secret"]}
-        else
-          register_new_client(config_path, server_base_url)
-        end
-
-      {:error, _} ->
-        register_new_client(config_path, server_base_url)
-    end
-  end
-
-  defp register_new_client(config_path, server_base_url) do
-    registration_params = %{
-      client_name: "CodeMySpec CLI",
-      redirect_uris: [Config.oauth_callback_url()]
-    }
-
-    url = "#{server_base_url}/oauth/register"
-    req_opts = build_req_opts(server_base_url)
-
-    case Req.post(url, Keyword.merge([json: registration_params], req_opts)) do
-      {:ok, %{status: 201, body: body}} ->
-        client_id = body["client_id"]
-        client_secret = body["client_secret"]
-
-        # Save for future use
-        File.write!(
-          config_path,
-          Jason.encode!(%{
-            server_url: server_base_url,
-            client_id: client_id,
-            client_secret: client_secret
-          })
-        )
-
-        File.chmod!(config_path, 0o600)
-
-        {:ok, client_id, client_secret}
-
-      {:ok, %{status: status, body: body}} when is_binary(body) ->
-        # Handle HTML error responses (like ngrok errors)
-        if String.contains?(body, "<!DOCTYPE html>") do
-          raise "Server is not reachable at #{server_base_url}. Is the Phoenix server running?"
-        else
-          raise "Client registration failed (HTTP #{status}): #{String.slice(body, 0, 200)}"
-        end
-
-      {:ok, response} ->
-        raise "Client registration failed (HTTP #{response.status}): #{inspect(response.body)}"
-
-      {:error, %Mint.TransportError{reason: :econnrefused}} ->
-        raise "Cannot connect to server at #{server_base_url}. Is the Phoenix server running?"
-
-      {:error, reason} ->
-        raise "Failed to connect to server at #{server_base_url}: #{inspect(reason)}"
-    end
-  end
-
-  defp refresh_token_for_user(user) do
-    case user.oauth_refresh_token do
-      nil ->
-        # No refresh token, need to re-authenticate
-        {:error, :needs_authentication}
-
-      refresh_token ->
-        server_base_url = get_server_url()
-        {:ok, client_id, client_secret} = get_or_register_client(server_base_url)
-
-        client =
-          OAuth2.Client.new(
-            strategy: Strategy,
-            client_id: client_id,
-            client_secret: client_secret,
-            site: server_base_url,
-            token_url: "#{server_base_url}/oauth/token",
-            request_opts: build_httpc_opts(server_base_url)
-          )
-
-        params = [
-          refresh_token: refresh_token,
-          grant_type: "refresh_token",
-          client_id: client_id,
-          client_secret: client_secret
-        ]
-
-        case OAuth2.Client.get_token(client, params) do
-          {:ok, %OAuth2.Client{token: token}} ->
-            # Parse token response from JSON string
-            {:ok, parsed} = Jason.decode(token.access_token)
-
-            # Update user in database with new tokens
-            token_data = %{
-              "access_token" => parsed["access_token"],
-              "refresh_token" => parsed["refresh_token"] || refresh_token,
-              "expires_in" => parsed["expires_in"]
-            }
-
-            Logger.debug("Token refreshed successfully, expires_in: #{token_data["expires_in"]}s")
-
-            case save_client_user(user.id, user.email, token_data) do
-              {:ok, _} ->
-                {:ok, token_data["access_token"]}
-
-              {:error, reason} ->
-                Logger.error("Failed to save refreshed token: #{inspect(reason)}")
-                {:error, :needs_authentication}
-            end
-
-          {:error, %OAuth2.Error{reason: reason}} ->
-            Logger.error("Token refresh failed (OAuth2.Error): #{inspect(reason)}")
-            {:error, :needs_authentication}
-
-          {:error, %OAuth2.Response{status_code: status, body: body}} ->
-            Logger.error("Token refresh failed (HTTP #{status}): #{inspect(body)}")
-            {:error, :needs_authentication}
-
-          {:error, reason} ->
-            Logger.error("Token refresh failed: #{inspect(reason)}")
-            {:error, :needs_authentication}
-        end
-    end
-  end
-
-  @doc """
-  Check if a user's token is expired.
-  Returns true if token is nil or expires in less than 5 minutes.
-  """
-  def token_expired?(%CodeMySpec.ClientUsers.ClientUser{oauth_expires_at: nil}), do: true
-
-  def token_expired?(%CodeMySpec.ClientUsers.ClientUser{oauth_expires_at: expires_at}) do
-    # Consider expired if less than 5 minutes remaining
-    DateTime.compare(DateTime.utc_now(), DateTime.add(expires_at, -300, :second)) == :gt
-  end
-
-  @doc """
-  Extract expires_in (seconds) from an OAuth2.AccessToken struct.
-
-  The OAuth2 library stores `expires_at` as a Unix timestamp, but we need
-  `expires_in` (seconds from now) for storage. This function:
-  1. Checks `other_params["expires_in"]` first (direct from server response)
-  2. Falls back to calculating from `expires_at` timestamp
-  3. Defaults to 7200 seconds (2 hours) if neither is available
-  """
-  def extract_expires_in(%OAuth2.AccessToken{} = token) do
-    token.other_params["expires_in"] ||
-      calculate_expires_in_from_timestamp(token.expires_at) ||
-      7200
-  end
-
-  defp calculate_expires_in_from_timestamp(nil), do: nil
-
-  defp calculate_expires_in_from_timestamp(expires_at) when is_integer(expires_at) do
-    max(0, expires_at - System.system_time(:second))
-  end
-
-  defp generate_pkce_pair do
-    code_verifier = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
-
-    code_challenge =
-      :crypto.hash(:sha256, code_verifier)
-      |> Base.url_encode64(padding: false)
-
-    {code_verifier, code_challenge}
-  end
-
-  defp generate_state do
-    :crypto.strong_rand_bytes(16) |> Base.url_encode64(padding: false)
-  end
+  # --- Private helpers ---
 
   defp open_browser(url) do
     case :os.type() do
@@ -449,73 +170,8 @@ defmodule CodeMySpecCli.Auth.OAuthClient do
     end
   end
 
-  def get_server_url do
-    Application.get_env(:code_my_spec, :oauth_base_url, "http://localhost:4000")
-  end
-
-  defp save_client_user(user_id, email, token_data) do
-    attrs = %{
-      id: user_id,
-      email: email,
-      oauth_token: token_data["access_token"],
-      oauth_refresh_token: token_data["refresh_token"],
-      oauth_expires_at: DateTime.add(DateTime.utc_now(), token_data["expires_in"], :second)
-    }
-
-    # Try to find existing user by ID or email
-    case CodeMySpec.Repo.get(CodeMySpec.ClientUsers.ClientUser, user_id) do
-      nil ->
-        # Create new user
-        %CodeMySpec.ClientUsers.ClientUser{}
-        |> CodeMySpec.ClientUsers.ClientUser.changeset(attrs)
-        |> CodeMySpec.Repo.insert()
-
-      existing_user ->
-        # Update existing user
-        existing_user
-        |> CodeMySpec.ClientUsers.ClientUser.changeset(attrs)
-        |> CodeMySpec.Repo.update()
-    end
-  end
-
-  defp fetch_user_info(server_base_url, access_token) do
-    url = "#{server_base_url}/api/me"
-    req_opts = build_req_opts(server_base_url)
-
-    headers = [{"authorization", "Bearer #{access_token}"}]
-
-    Logger.debug(
-      "Fetching user info from #{url} with token: #{String.slice(access_token, 0..10)}..."
-    )
-
-    case Req.get(url, Keyword.merge([headers: headers], req_opts)) do
-      {:ok, %{status: 200, body: %{"id" => id, "email" => email}}} ->
-        {:ok, %{id: id, email: email}}
-
-      {:ok, %{status: status, body: body}} ->
-        Logger.debug("Failed to fetch user info (HTTP #{status}): #{inspect(body)}")
-        {:error, "Failed to fetch user info (HTTP #{status})"}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  # Build Req options for HTTP requests (used for registration)
-  defp build_req_opts(server_url) do
-    if String.starts_with?(server_url, "https://localhost") do
-      # For local HTTPS with self-signed certs, disable verification
-      [connect_options: [transport_opts: [verify: :verify_none]]]
-    else
-      []
-    end
-  end
-
-  # Build SSL options for OAuth2 library (Tesla with httpc adapter)
   defp build_httpc_opts(server_url) do
     if String.starts_with?(server_url, "https://localhost") do
-      # For local HTTPS with self-signed certs, disable verification
-      # httpc adapter uses `ssl:` key (not `ssl_options:` like hackney)
       [ssl: [verify: :verify_none]]
     else
       []

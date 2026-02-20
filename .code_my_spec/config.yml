@@ -1,5 +1,6 @@
 client_api_url: "https://www.codemyspec.com/api"
 code_repo: "https://github.com/johns10/code_my_spec"
+current_user_email: "johns10@gmail.com"
 description: 
 docs_repo: "https://github.com/johns10/code_my_spec_docs"
 module_name: CodeMySpec

@@ -46,7 +46,7 @@ defmodule CodeMySpecCli.MixProject do
       # CodeMySpec deps
       {:credo, "~> 1.7"},
       {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false},
-      {:client_utils, "~> 0.1"},
+      {:client_utils, "~> 0.1.12"},
       {:mix_machine, git: "https://github.com/johns10/mix_machine", branch: "master"}
     ]
   end

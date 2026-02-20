@@ -1,6 +1,6 @@
 ---
 name: review-architecture
-description: Review current architecture design against best practices. Checks surface-to-domain separation, dependency flow, and story coverage.
+description: Review architecture against best practices. Reports on surface-to-domain separation, dependency health, circular dependencies, orphaned components, and story coverage.
 user-invocable: true
 allowed-tools: Bash(*/agent-task *), Read, Write, Glob, Grep, mcp__plugin_codemyspec_architecture-server__*
 argument-hint: []

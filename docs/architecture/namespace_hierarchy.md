@@ -14,53 +14,29 @@ AnalyticsAdmin
     ├── UpdateCustomDimension [module] Tool for modifying custom dimension metadata.
     ├── UpdateCustomMetric [module] Tool for modifying custom metric metadata.
     └── UpdateKeyEvent [module] Tool for modifying key event configuration.
-AnalyticsAdminServer [context] Hermes MCP server exposing Google Analytics 4 administrative tools to AI agents. Registers 14 tools for managing cust...
+AnalyticsAdminServer [module] Hermes MCP server exposing Google Analytics 4 administrative tools to AI agents. Registers 14 tools for managing cust...
 Architecture
 └── Tools
     └── UpdateSpecMetadata [module] Tool for updating metadata fields of component and context specifications in the architecture design system.
 CodeMySpec
 └── McpServers
-    ├── AnalyticsAdmin
-    │   └── Tools
-    │       ├── ArchiveCustomDimension [module]
-    │       ├── ArchiveCustomMetric [module]
-    │       ├── CreateCustomDimension [module]
-    │       ├── CreateCustomMetric [module]
-    │       ├── CreateKeyEvent [module]
-    │       ├── DeleteKeyEvent [module]
-    │       ├── GetCustomDimension [module]
-    │       ├── GetCustomMetric [module]
-    │       ├── ListCustomDimensions [module]
-    │       ├── ListCustomMetrics [module]
-    │       ├── ListKeyEvents [module]
-    │       ├── UpdateCustomDimension [module]
-    │       ├── UpdateCustomMetric [module]
-    │       └── UpdateKeyEvent [module]
     ├── Architecture
     │   └── Tools
-    │       ├── CreateSpec [module]
-    │       ├── DeleteSpec [module]
-    │       └── UpdateSpecMetadata [module]
+    │       └── CreateSpec [module] MCP tool module for creating component and context specification documents through the ArchitectureServer. This tool ...
     ├── Components
     │   └── Tools
-    │       ├── AddSimilarComponent [module]
-    │       ├── CreateComponent [module]
-    │       ├── CreateComponents [module]
-    │       ├── GetComponent [module]
-    │       └── UpdateComponent [module]
+    │       └── CreateComponent [module] MCP tool module for creating a single component definition through the ComponentsServer. This tool enables AI agents ...
     ├── Stories
     │   └── Tools
-    │       ├── AddCriterion [module]
-    │       ├── ClearStoryComponent [module]
-    │       └── UpdateStory [module]
-    └── Validators [module]
-CodeMySpecCli [context]
-├── Application [context]
+    │       └── AddCriterion [module] MCP tool module for adding acceptance criteria to existing stories through the StoriesServer. This tool enables AI ag...
+    └── Validators [module] Validation functions for MCP servers. Provides scope validation to ensure that MCP server requests have the required ...
+CodeMySpecCli [module]
+├── Application [module]
 ├── Auth
 │   ├── OAuthClient [module]
 │   └── Strategy [module]
-├── Cli [context]
-├── CliRunner [context]
+├── Cli [module]
+├── CliRunner [module]
 ├── Commands
 │   ├── CommandBehaviour [module]
 │   ├── Components [module]
@@ -70,14 +46,15 @@ CodeMySpecCli [context]
 │   ├── Login [module]
 │   ├── Logout [module]
 │   ├── Registry [module]
+│   ├── Server [module]
 │   ├── Sessions [module]
 │   └── Whoami [module]
-├── Config [context]
-├── Hooks [context]
+├── Config [module]
+├── Migrator [module]
 ├── Release
 │   ├── PackageExtension [module]
 │   └── PatchLauncherStep [module]
-├── Scope [context]
+├── Scope [module]
 ├── SlashCommands
 │   ├── EvaluateAgentTask [module]
 │   ├── SlashCommandBehaviour [module]
@@ -85,13 +62,13 @@ CodeMySpecCli [context]
 │   └── Sync [module]
 ├── Stories
 │   └── RemoteClient [module]
-├── TerminalPanes [context]
-└── WebServer [context]
+├── TerminalPanes [module]
+└── WebServer [module]
     ├── Config [module]
     ├── Router [module]
     └── Telemetry [module]
 Components
-├── ComponentsMapper [context] Maps component domain entities to MCP response formats with JSON structures for AI agent consumption.
+├── ComponentsMapper [module] Maps component domain entities to MCP response formats with JSON structures for AI agent consumption.
 └── Tools
     ├── AddSimilarComponent [module] Tool for marking components as architectural analogs for reference.
     ├── ArchitectureHealthSummary [module] Tool for analyzing architectural quality metrics and identifying issues.
@@ -110,13 +87,17 @@ Components
     ├── ShowArchitecture [module] Tool for visualizing the component dependency graph and structure.
     ├── StartContextDesign [module] Tool for initiating structured context design workflow sessions.
     └── UpdateComponent [module] Tool for modifying component metadata and relationships.
-ComponentsServer [context] Hermes MCP server exposing component architecture tools to AI agents. Registers 16 tools for component CRUD, dependen...
-Formatters [context] Response formatting utilities for MCP servers providing hybrid human-readable + JSON responses with changeset error f...
+ComponentsServer [module] Hermes MCP server exposing component architecture tools to AI agents. Registers 16 tools for component CRUD, dependen...
+Formatters [module] Response formatting utilities for MCP servers providing hybrid human-readable + JSON responses with changeset error f...
+Fuellytics
+├── TestLocation [module] Testing file location fix
+└── Verification [module] Handles verification workflows and photo validation
+    └── Transaction [module] A fuel transaction requiring verification
 Mix
 └── Tasks
     └── Cli [module]
 Stories
-├── StoriesMapper [context] Maps story domain entities to MCP response formats with hybrid text summaries and JSON data structures for both human...
+├── StoriesMapper [module] Maps story domain entities to MCP response formats with hybrid text summaries and JSON data structures for both human...
 └── Tools
     ├── AddCriterion [module] Tool for adding acceptance criteria to existing stories.
     ├── ClearStoryComponent [module] Tool for removing component association from a story.
@@ -132,5 +113,5 @@ Stories
     ├── StartStoryReview [module] Tool for initiating story validation and approval workflow sessions.
     ├── UpdateCriterion [module] Tool for modifying acceptance criterion text or verification status.
     └── UpdateStory [module] Tool for updating existing user story fields.
-StoriesServer [context] Hermes MCP server exposing user story management tools to AI agents. Registers 13 tools for CRUD operations on storie...
-Validators [context] Validation utilities for MCP server requests ensuring proper scope (account and project) context.
+StoriesServer [module] Hermes MCP server exposing user story management tools to AI agents. Registers 13 tools for CRUD operations on storie...
+Validators [module] Validation utilities for MCP server requests ensuring proper scope (account and project) context.

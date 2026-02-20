@@ -1,6 +1,6 @@
 ---
 name: generate-test
-description: Generate component tests from spec using agent task session
+description: Generate component tests from spec. Uses TDD patterns, similar component examples, and validates spec alignment and quality thresholds.
 user-invocable: true
 allowed-tools: Bash(*/agent-task *), Read, Write, Glob, Grep
 argument-hint: [ModuleName]

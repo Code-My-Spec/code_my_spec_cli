@@ -9,8 +9,8 @@ defmodule CodeMySpecCli.Stories.RemoteClientTest do
 
   import CodeMySpecCli.ClientUsersFixtures
 
-  alias CodeMySpecCli.Stories.RemoteClient
   alias CodeMySpec.Stories.Story
+  alias CodeMySpecCli.Stories.RemoteClient
 
   setup do
     ExVCR.Config.cassette_library_dir("test/fixtures/vcr_cassettes/stories")
@@ -38,7 +38,7 @@ defmodule CodeMySpecCli.Stories.RemoteClientTest do
   describe "list_project_stories/1" do
     test "returns list of project stories", %{scope: scope} do
       use_cassette "remote_client_list_project_stories" do
-        stories = RemoteClient.list_project_stories(scope)
+        assert {:ok, stories} = RemoteClient.list_project_stories(scope)
         assert is_list(stories)
       end
     end
@@ -69,7 +69,7 @@ defmodule CodeMySpecCli.Stories.RemoteClientTest do
 
     test "returns nil when story doesn't exist", %{scope: scope} do
       use_cassette "remote_client_get_story_not_found" do
-        story = RemoteClient.get_story(scope, 99999)
+        story = RemoteClient.get_story(scope, 99_999)
         assert is_nil(story)
       end
     end
@@ -79,7 +79,7 @@ defmodule CodeMySpecCli.Stories.RemoteClientTest do
     test "raises when story doesn't exist", %{scope: scope} do
       use_cassette "remote_client_get_story_bang_not_found" do
         assert_raise Ecto.NoResultsError, fn ->
-          RemoteClient.get_story!(scope, 99999)
+          RemoteClient.get_story!(scope, 99_999)
         end
       end
     end

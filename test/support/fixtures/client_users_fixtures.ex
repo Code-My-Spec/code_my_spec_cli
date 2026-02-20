@@ -15,7 +15,7 @@ defmodule CodeMySpecCli.ClientUsersFixtures do
       Enum.into(attrs, %{
         id: System.unique_integer([:positive]),
         email: "client#{System.unique_integer([:positive])}@example.com",
-        oauth_expires_at: DateTime.add(DateTime.utc_now(), 86400, :second),
+        oauth_expires_at: DateTime.add(DateTime.utc_now(), 86_400, :second),
         oauth_refresh_token: "some oauth_refresh_token",
         oauth_token: "some oauth_token"
       })
@@ -29,7 +29,7 @@ defmodule CodeMySpecCli.ClientUsersFixtures do
   Creates a ClientUser record with valid OAuth token and sets it as the current user.
   """
   def authenticated_client_user_fixture(attrs \\ %{}) do
-    expires_at = DateTime.add(DateTime.utc_now(), 86400, :second)
+    expires_at = DateTime.add(DateTime.utc_now(), 86_400, :second)
     token = System.get_env("OAUTH_TOKEN") || "test_token_placeholder"
 
     default_attrs = %{
@@ -59,7 +59,7 @@ defmodule CodeMySpecCli.ClientUsersFixtures do
   Uses minimal struct creation since VCR mocks the actual API calls.
   """
   def full_scope_fixture do
-    account_id = System.unique_integer([:positive])
+    account_id = Ecto.UUID.generate()
     project_id = Ecto.UUID.generate()
 
     # Create a minimal project in the database

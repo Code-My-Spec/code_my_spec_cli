@@ -21,6 +21,7 @@ defmodule CodeMySpecCli.Application do
     children =
       [
         CodeMySpec.Repo,
+        CodeMySpecCli.Migrator,
         CodeMySpec.Vault,
         {Phoenix.PubSub, name: CodeMySpec.PubSub},
         {Registry, keys: :unique, name: CodeMySpecCli.Registry},
@@ -38,6 +39,7 @@ defmodule CodeMySpecCli.Application do
 
       [
         CodeMySpecCli.WebServer.Telemetry,
+        CodeMySpec.LocalServer.AuthState,
         {CodeMySpec.McpServers.ArchitectureServer, transport: {:streamable_http, start: true}},
         CodeMySpec.LocalServer,
         {CodeMySpecCli.CliRunner, args}

@@ -1,6 +1,6 @@
 ---
 name: design-architecture
-description: Start a guided architecture design session. Maps user stories to surface components and identifies needed bounded contexts.
+description: Start a guided architecture design session. Maps unsatisfied user stories to surface components, identifies bounded contexts, and validates proposals before execution.
 user-invocable: true
 allowed-tools: Bash(*/agent-task *), Read, Write, Glob, Grep, mcp__plugin_codemyspec_architecture-server__*
 argument-hint: []
