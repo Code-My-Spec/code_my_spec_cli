@@ -1,0 +1,14 @@
+#!/bin/bash
+# CLI wrapper - runs mix cli from the correct directory
+
+# Capture the working directory BEFORE we cd to the CLI directory
+# This is the project directory where Claude Code is running
+PROJECT_DIR="$PWD"
+
+cd "$(dirname "$0")/../.."
+
+# Pre-compile to avoid mix output during execution
+mix compile --no-warnings-as-errors >/dev/null 2>&1
+
+# Run mix cli with passed args, adding the working directory
+exec mix cli "$@" --working-dir "$PROJECT_DIR"

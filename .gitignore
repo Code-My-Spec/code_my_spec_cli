@@ -22,5 +22,4 @@ code_my_spec_cli-*.tar
 # Temporary files, for example, from tests.
 /tmp/
 /release/
-/CodeMySpec/bin/
 /burrito_out/

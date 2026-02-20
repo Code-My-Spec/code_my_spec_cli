@@ -164,12 +164,22 @@ defmodule CodeMySpecCli.Release.PackageExtension do
   end
 
   defp copy_extension_files(source, dest) do
-    for dir <- [".claude-plugin", "hooks", "agents", "skills"] do
+    for dir <- [".claude-plugin", "bin", "hooks", "agents", "skills", "knowledge"] do
       source_dir = Path.join(source, dir)
       dest_dir = Path.join(dest, dir)
 
       if File.exists?(source_dir) do
         File.cp_r!(source_dir, dest_dir)
+      end
+    end
+
+    # Copy top-level files
+    for file <- ["AGENTS.md"] do
+      source_file = Path.join(source, file)
+      dest_file = Path.join(dest, file)
+
+      if File.exists?(source_file) do
+        File.cp!(source_file, dest_file)
       end
     end
   end
@@ -373,8 +383,8 @@ defmodule CodeMySpecCli.Release.PackageExtension do
 
   defp create_gitignore(extension_dir) do
     gitignore = """
-    # Binary downloaded by install script
-    bin/
+    # Binary downloaded by install script (overwrites dev wrapper)
+    bin/cms
     """
 
     gitignore_path = Path.join(extension_dir, ".gitignore")
