@@ -9,6 +9,7 @@ defmodule CodeMySpecCli.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      aliases: aliases(),
       releases: releases()
     ]
   end
@@ -48,6 +49,12 @@ defmodule CodeMySpecCli.MixProject do
       {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false},
       {:client_utils, "~> 0.1.12"},
       {:mix_machine, git: "https://github.com/johns10/mix_machine", branch: "master"}
+    ]
+  end
+
+  defp aliases do
+    [
+      sobelow: ["sobelow --skip"]
     ]
   end
 

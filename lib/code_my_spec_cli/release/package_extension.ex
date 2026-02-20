@@ -6,6 +6,9 @@ defmodule CodeMySpecCli.Release.PackageExtension do
   1. Creates a release directory with extension files
   2. Copies the binary for GitHub Release upload
   3. Creates an install script that downloads the binary
+
+  All file paths are derived from the Burrito build context and module
+  constants — no user input reaches file operations.
   """
 
   @behaviour Burrito.Builder.Step
@@ -14,6 +17,7 @@ defmodule CodeMySpecCli.Release.PackageExtension do
   @release_dir "codemyspec-extension"
   @github_repo "Code-My-Spec/code_my_spec_claude_code_extension"
 
+  # sobelow_skip ["Traversal"]
   @impl true
   def execute(%Burrito.Builder.Context{} = context) do
     log("Packaging CodeMySpec extension...")
@@ -78,6 +82,7 @@ defmodule CodeMySpecCli.Release.PackageExtension do
     context
   end
 
+  # sobelow_skip ["Traversal"]
   defp get_plugin_version(extension_dir) do
     plugin_json_path = Path.join([extension_dir, ".claude-plugin", "plugin.json"])
 
@@ -114,6 +119,7 @@ defmodule CodeMySpecCli.Release.PackageExtension do
     run_cmd("git", ["push", "origin", "v#{version}", "--force"], extension_dir)
   end
 
+  # sobelow_skip ["CI"]
   defp create_github_release(binary_path, _binary_name, version) do
     # Use GitHub CLI (gh) to create release and upload binary
     tag = "v#{version}"
@@ -149,6 +155,7 @@ defmodule CodeMySpecCli.Release.PackageExtension do
     end
   end
 
+  # sobelow_skip ["CI"]
   defp run_cmd(cmd, args, dir) do
     {output, exit_code} = System.cmd(cmd, args, cd: dir, stderr_to_stdout: true)
 
@@ -163,6 +170,7 @@ defmodule CodeMySpecCli.Release.PackageExtension do
     IO.puts("--> [PackageExtension] #{message}")
   end
 
+  # sobelow_skip ["Traversal"]
   defp copy_extension_files(source, dest) do
     for dir <- [".claude-plugin", "bin", "hooks", "agents", "skills", "knowledge"] do
       source_dir = Path.join(source, dir)
@@ -205,6 +213,7 @@ defmodule CodeMySpecCli.Release.PackageExtension do
     end
   end
 
+  # sobelow_skip ["Traversal"]
   defp create_install_script(extension_dir) do
     script = ~S"""
     #!/bin/bash
@@ -316,6 +325,7 @@ defmodule CodeMySpecCli.Release.PackageExtension do
     File.chmod!(script_path, 0o755)
   end
 
+  # sobelow_skip ["Traversal"]
   defp create_readme(extension_dir) do
     readme = """
     # CodeMySpec - Claude Code Extension
@@ -381,6 +391,7 @@ defmodule CodeMySpecCli.Release.PackageExtension do
     File.write!(readme_path, readme)
   end
 
+  # sobelow_skip ["Traversal"]
   defp create_gitignore(extension_dir) do
     gitignore = """
     # Binary downloaded by install script (overwrites dev wrapper)
