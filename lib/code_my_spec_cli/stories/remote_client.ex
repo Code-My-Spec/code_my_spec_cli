@@ -27,14 +27,22 @@ defmodule CodeMySpecCli.Stories.RemoteClient do
   end
 
   def list_project_stories(%Scope{} = scope) do
+    Logger.debug("[RemoteClient] list_project_stories for project_id: #{inspect(scope.active_project_id)}")
+
     case get_request(scope, "/api/stories-list/project") do
       {:ok, %{status: 200, body: %{"data" => stories}}} ->
+        Logger.debug("[RemoteClient] list_project_stories got #{length(stories)} stories")
         {:ok, Enum.map(stories, &deserialize_story/1)}
+
+      {:ok, %{status: status, body: body}} ->
+        Logger.warning("[RemoteClient] list_project_stories unexpected status: #{status}, body: #{inspect(body)}")
+        {:error, {:unexpected_status, status}}
 
       {:ok, %{status: 401}} ->
         {:error, :authentication_failed}
 
       {:error, reason} ->
+        Logger.warning("[RemoteClient] list_project_stories error: #{inspect(reason)}")
         {:error, reason}
     end
   end
@@ -256,7 +264,7 @@ defmodule CodeMySpecCli.Stories.RemoteClient do
         Logger.debug("[RemoteClient] Token obtained: #{String.slice(token, 0, 20)}...")
         result = Req.get(
           url: "#{base_url}#{path}",
-          headers: [{"authorization", "Bearer #{token}"}],
+          headers: build_headers(token, scope),
           decode_json: [keys: :strings]
         )
         case result do
@@ -278,7 +286,7 @@ defmodule CodeMySpecCli.Stories.RemoteClient do
       Req.post(
         url: "#{base_url}#{path}",
         json: body,
-        headers: [{"authorization", "Bearer #{token}"}],
+        headers: build_headers(token, scope),
         decode_json: [keys: :strings]
       )
     end
@@ -291,7 +299,7 @@ defmodule CodeMySpecCli.Stories.RemoteClient do
       Req.put(
         url: "#{base_url}#{path}",
         json: body,
-        headers: [{"authorization", "Bearer #{token}"}],
+        headers: build_headers(token, scope),
         decode_json: [keys: :strings]
       )
     end
@@ -303,10 +311,22 @@ defmodule CodeMySpecCli.Stories.RemoteClient do
     with {:ok, token} <- get_oauth_token(scope) do
       Req.delete(
         url: "#{base_url}#{path}",
-        headers: [{"authorization", "Bearer #{token}"}],
+        headers: build_headers(token, scope),
         decode_json: [keys: :strings]
       )
     end
+  end
+
+  defp build_headers(token, %Scope{active_project_id: project_id})
+       when is_binary(project_id) do
+    [
+      {"authorization", "Bearer #{token}"},
+      {"x-project-id", project_id}
+    ]
+  end
+
+  defp build_headers(token, _scope) do
+    [{"authorization", "Bearer #{token}"}]
   end
 
   defp get_base_url do
