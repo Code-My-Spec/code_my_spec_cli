@@ -443,11 +443,16 @@ defmodule CodeMySpecCli.Release.PackageExtension do
     CodeMySpec creates and manages these directories in your Phoenix project:
 
     ```
-    docs/
-    ├── spec/          # Component specifications (mirrors Elixir namespace)
-    ├── rules/         # Design and test rules by component type
-    ├── architecture/  # Dependency graph, namespace hierarchy, overview
-    └── status/        # Implementation checklists
+    .code_my_spec/
+    ├── spec/               # Component specifications (mirrors Elixir namespace)
+    ├── rules/              # Design and test rules by component type
+    ├── architecture/       # Dependency graph, namespace hierarchy, overview
+    ├── status/             # Implementation checklists
+    ├── knowledge/          # Project-specific research
+    ├── plugin_knowledge/   # Framework knowledge (symlink to plugin)
+    ├── design/             # Design system assets
+    ├── issues/             # Known bugs and technical debt
+    └── qa/                 # QA test results
     ```
 
     ## Requirements

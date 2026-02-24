@@ -1,6 +1,6 @@
 ---
 name: qa-app
-description: QA the app by browsing with the web tool. Visits routes, tests forms, files issues for bugs found.
+description: QA the app by browsing with the web tool. Orchestrates per-story QA subagents, smoke-tests routes, and writes a summary.
 user-invocable: true
 allowed-tools: Bash(*/agent-task *), Bash(web *), Bash(lsof *), Bash(mix phx.*), Read, Write, Glob, Grep, Task
 argument-hint: []

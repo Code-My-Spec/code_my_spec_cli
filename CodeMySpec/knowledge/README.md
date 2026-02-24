@@ -17,6 +17,7 @@ Extracted from official documentation — each file lists source URLs at the top
 | Context, schema, or test scaffold  | `conventions.md`                          |
 | BDD specs (Given/When/Then)        | `bdd/spex.md`                             |
 | Bounded context isolation, dep rules | `boundary.md`                             |
+| Browser QA with `web` CLI           | `web-cli.md`                              |
 
 ## Target stack
 
@@ -42,6 +43,7 @@ knowledge/
 │   └── tailwind.md           # Layout, spacing, responsive breakpoints, flex/grid
 ├── heex/
 │   └── syntax.md             # ~H sigil, :for/:if/:let, phx- bindings, change tracking
-└── bdd/
-    └── spex.md               # SexySpex DSL, Given/When/Then, context flow, shared givens, mix spex
+├── bdd/
+│   └── spex.md               # SexySpex DSL, Given/When/Then, context flow, shared givens, mix spex
+└── web-cli.md                # chrismccord/web CLI — shell browser for LLM agents, flags, LiveView support
 ```
