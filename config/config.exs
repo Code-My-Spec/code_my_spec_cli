@@ -15,9 +15,6 @@ config :code_my_spec, CodeMySpec.Repo,
 config :code_my_spec,
   ecto_repos: [CodeMySpec.Repo]
 
-# Use remote API for stories (connects to Postgres via Phoenix server)
-config :code_my_spec, :stories_implementation, CodeMySpecCli.Stories.RemoteClient
-
 config :phoenix, :json_library, Jason
 
 config :code_my_spec, CodeMySpec.Vault,

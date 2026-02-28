@@ -19,6 +19,7 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
   use CodeMySpecCli.SlashCommands.SlashCommandBehaviour
 
   alias CodeMySpec.AgentTasks.StartAgentTask, as: DomainStartAgentTask
+  alias CodeMySpecCli.Stories.Sync, as: StorySync
 
   def execute(scope, args) do
     require Logger
@@ -29,9 +30,16 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
     args = Map.put(args, :working_dir, working_dir)
     Logger.debug("[StartAgentTask CLI] working_dir: #{working_dir}")
 
+    IO.puts("before sync")
+    # Sync stories from remote API into local DB before running the task
+    StorySync.sync(scope)
+
     case DomainStartAgentTask.run(scope, args) do
       {:ok, prompt, sync_result} ->
-        Logger.info("[StartAgentTask CLI] Success, prompt length: #{if is_binary(prompt), do: String.length(prompt), else: "NOT A STRING: #{inspect(prompt)}"}")
+        Logger.info(
+          "[StartAgentTask CLI] Success, prompt length: #{if is_binary(prompt), do: String.length(prompt), else: "NOT A STRING: #{inspect(prompt)}"}"
+        )
+
         output_sync_metrics(sync_result)
         IO.puts(prompt)
         :ok
@@ -45,7 +53,11 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
     error ->
       require Logger
       Logger.error("[StartAgentTask CLI] Exception: #{Exception.message(error)}")
-      Logger.error("[StartAgentTask CLI] Stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)}")
+
+      Logger.error(
+        "[StartAgentTask CLI] Stacktrace: #{Exception.format_stacktrace(__STACKTRACE__)}"
+      )
+
       IO.puts(:stderr, "Error: #{Exception.message(error)}")
       {:error, Exception.message(error)}
   end
