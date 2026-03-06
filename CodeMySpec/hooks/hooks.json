@@ -1,5 +1,15 @@
 {
   "hooks": {
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/bin/approve"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
@@ -36,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/bin/intercept_mix_test"
+            "command": "${CLAUDE_PLUGIN_ROOT}/.claude-plugin/bin/hook"
           }
         ]
       }
