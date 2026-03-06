@@ -40,14 +40,15 @@ defmodule CodeMySpecCli.MixProject do
       {:jason, "~> 1.2"},
       {:file_system, "~> 1.0"},
       {:briefly, "~> 0.5.1"},
+      {:slipstream, "~> 1.1"},
 
       # Test deps
       {:exvcr, "~> 0.15", only: :test},
 
       # CodeMySpec deps
       {:credo, "~> 1.7"},
-      {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false},
-      {:client_utils, "~> 0.1.12"},
+      {:sobelow, "~> 0.14.1", runtime: false},
+      {:client_utils, path: "../client_utils"},
       {:mix_machine, git: "https://github.com/johns10/mix_machine", branch: "master"}
     ]
   end
