@@ -2,7 +2,6 @@
 name: qa
 description: Tests a single user story by following a QA prompt, writing a brief, executing tests, and writing results with evidence
 tools: Read, Write, Glob, Grep, Bash(web *), Bash(curl), Bash(curl *), Bash(vibium), Bash(vibium *), Bash(lsof), Bash(lsof *), Bash(mix run *), Bash(mix phx.*), Bash(.code_my_spec/qa/scripts/*), Bash(*/scripts/*), Bash(mix test *), mcp__vibium__*
-mcpServers: vibium
 model: sonnet
 color: red
 ---

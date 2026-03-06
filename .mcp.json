@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "vibium": {
+      "type": "stdio",
+      "command": "vibium",
+      "args": ["mcp"],
+      "env": {}
+    }
+  }
+}

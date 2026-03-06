@@ -30,7 +30,6 @@ defmodule CodeMySpecCli.SlashCommands.StartAgentTask do
     args = Map.put(args, :working_dir, working_dir)
     Logger.debug("[StartAgentTask CLI] working_dir: #{working_dir}")
 
-    IO.puts("before sync")
     # Sync stories from remote API into local DB before running the task
     StorySync.sync(scope)
 

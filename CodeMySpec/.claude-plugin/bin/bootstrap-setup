@@ -1,0 +1,8 @@
+#!/bin/bash
+# Run project setup check and return setup instructions
+# No config.yml required — this is what guides you through creating it
+# Returns {"prompt": "..."}
+
+curl -s -X POST http://localhost:4002/api/bootstrap/setup \
+  -H "Content-Type: application/json" \
+  -H "X-Working-Dir: $(pwd)"
