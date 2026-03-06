@@ -22,6 +22,7 @@ defmodule CodeMySpecCli.Application do
       [
         CodeMySpec.Repo,
         CodeMySpecCli.Migrator,
+        {Task, &CodeMySpecCli.FrameworkSync.sync/0},
         CodeMySpec.Vault,
         {Phoenix.PubSub, name: CodeMySpec.PubSub},
         {Registry, keys: :unique, name: CodeMySpecCli.Registry},
